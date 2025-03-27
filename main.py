@@ -165,8 +165,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         rules = [
             "Considere variações contextuais, padrões esperados e maior relevância nos dados históricos mais recentes.",
             f"Avaliando apenas este conjunto de dados {job_data.attributes}: caso existam valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
-            f"Avaliando apenas este conjunto de dados {job_data.attributes}: caso existam valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
-            f"Avaliando apenas este conjunto de dados {job_data.attributes}: caso existam valores de 'stddev', 'min' e 'max', o valor de 'stddev' deve ser menor que a diferença entre 'max' e 'min'."
+            f"Avaliando apenas este conjunto de dados {job_data.attributes}: caso existam valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
         ]
 
         # Adicionar regras adicionais para cada cenários de dados
