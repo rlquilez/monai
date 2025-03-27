@@ -164,8 +164,8 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         
         rules = [
             "Considere variações contextuais, padrões esperados e maior relevância nos dados históricos mais recentes.",
-            f"Para esta regra considerar apenas os novos dados recebdios e caso existam valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
-            f"Para esta regra considerar apenas os novos dados recebdios e caso existam valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
+            f"Para esta regra considerar apenas os novos dados recebidos e caso existam valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
+            f"Para esta regra considerar apenas os novos dados recebidos e caso existam valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
         ]
 
         # Adicionar regras adicionais para cada cenários de dados
@@ -182,7 +182,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "Com base na análise, responda de forma objetiva, resumida e direta com uma das seguintes opções:\n"
             "'true': Se o novo dado segue o mesmo padrão do histórico fornecido.\n"
             "'false': Se o novo dado apresenta um padrão incomum dentro do histórico.\n"
-            "Como saída a resposta deveobrigatóriamente deve ser formatada em um JSON contendo uma chave com o resultado da análise (true/false) e uma chave contendo a explicação resumida, caso a decisão tenha sido devido à uma regra obrigatória indicar qual delas. Exemplo:\n"
+            "Como saída a resposta deveobrigatóriamente deve ser formatada em um JSON contendo uma chave com o resultado da análise (true/false) e uma chave contendo a explicação resumida. Exemplo:\n"
             "{\n"
             "  \"result\": \"false\",\n" 
             "  \"explain\": \"O novo dado apresenta uma anomalia significativa em seu valor de 'max', que é consideravelmente mais alto que os valores históricos...\"\n"
