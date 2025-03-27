@@ -100,10 +100,12 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
 
 3. Envie uma requisição para o endpoint `/jobs/`:
    - **Exemplo de requisição:**
-     ```json
+     ```bash
      POST /jobs/
      Content-Type: application/json
-
+     ```
+     
+     ```json
      {
        "job_id": "123e4567-e89b-12d3-a456-426614174000",
        "monai_history_days": 7,
