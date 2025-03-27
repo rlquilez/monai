@@ -164,9 +164,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         
         rules = [
             "Considere variações contextuais, padrões esperados e maior relevância nos dados históricos mais recentes.",
-            "Novo dado recebido, caso sejam recebidos valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
-            "Novo dado recebido, caso sejam recebidos valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
-            "Novo dado recebido, caso sejam recebidos valores de 'stddev', 'min' e 'max', O valor de 'stddev' deve ser menor que a diferença entre 'max' e 'min'."
+            "Avaliando apenas o novo dado recebido, caso sejam recebidos valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
+            "Avaliando apenas o novo dado recebido, caso sejam recebidos valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
+            "Avaliando apenas o novo dado recebido, caso sejam recebidos valores de 'stddev', 'min' e 'max', O valor de 'stddev' deve ser menor que a diferença entre 'max' e 'min'."
         ]
 
         # Adicionar regras adicionais para cada cenários de dados
