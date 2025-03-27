@@ -1,0 +1,61 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.whl
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.history/
+
+# OS generated files
+*.swp
+*.lock
+*.bak
+*.tmp
+*.orig
+*.rej
+*.~*
+
+# Monai specific (if applicable)
+output/
+results/
+checkpoints/
+
+# Adicionar exclusões específicas
+*.log
+.env
+*.env

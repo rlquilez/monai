@@ -1,0 +1,47 @@
+name: Build and Push Docker Image to Registry
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      RUNNER_TOOL_CACHE: /toolcache
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.GIT_REGISTRY_USER }}
+          password: ${{ secrets.GIT_REGISTRY_PASSWORD }}
+          registry: ${{ secrets.GIT_REGISTRY }}
+
+      # SEM MULTIPLATAFORMA
+      - name: Construir a imagem Docker
+        run: docker build -t ${{ secrets.GIT_REGISTRY }}/${{ secrets.GIT_OWNER }}/monai:latest .
+      
+      - name: Enviar a imagem para o Gitea Registry
+        run: docker push ${{ secrets.GIT_REGISTRY }}/${{ secrets.GIT_OWNER }}/monai:latest
+      
+      # COM MULTIPLATAFORMA
+      #- name: Set up QEMU
+      #  uses: docker/setup-qemu-action@v3
+      #
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3
+      #  
+      #- name: Build e Push da imagem
+      #  uses: docker/build-push-action@v6
+      #  with:
+      #    platforms: linux/amd64,linux/arm64
+      #    context: .
+      #    push: true
+      #    tags: ${{ secrets.GIT_REGISTRY }}/${{ secrets.GIT_OWNER }}/monai:latest
+      #    #cache-from: type=registry,ref=${{ secrets.GIT_REGISTRY }}/${{ secrets.GIT_OWNER }}/spliit:cache
+      #    #cache-to: type=registry,ref=${{ secrets.GIT_REGISTRY }}/${{ secrets.GIT_OWNER }}/spliit:cache
