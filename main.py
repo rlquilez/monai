@@ -217,7 +217,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
 
         # Obter a resposta do modelo
         if os.getenv("MONAI_LLM", "OPENAI").upper() == 'OPENAI':
-            evaluation = response.choices[0].message.get("content", "").strip()
+            evaluation = response.choices[0].message.content.strip()
         elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'GOOGLE':
             evaluation = getattr(response, "text", "").strip()
         elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'ANTHROPIC':
