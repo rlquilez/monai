@@ -161,16 +161,29 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             }
             for data in historical_data
         ]
+        
+        rules = [
+            "Considere variações contextuais, padrões esperados e maior relevância nos dados históricos mais recentes.",
+            "Caso sejam recebidos valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
+            "Caso sejam recebidos valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
+            "Caso sejam recebidos valores de 'stddev', 'min' e 'max', O valor de 'stddev' deve ser menor que a diferença entre 'max' e 'min'."
+        ]
+
+        # Adicionar regras adicionais para cada cenários de dados
+
+        mandatory_rules = "".join([f"{i + 1}. {rule}\n" for i, rule in enumerate(rules)])
 
         prompt = (
             "Utilize técnicas de Análise Exploratória de Dados para entender as propriedades estatísticas e os padrões de cada um dos valores do conjunto de dados histórico abaixo e comparar com o último dado recebido."
-            "Considere variações contextuais, padrões esperados e maior relevância nos dados históricos mais recentes. Forneça uma explicação resumida para sua resposta.\n\n"
+            "As regras abaixo são obrigatórias para a análise e resultado:\n"
+            f"{mandatory_rules}\n"
+            "\n"
             f"Histórico de dados (últimas {history_days} entradas):\n{historical_attributes}\n\n"
             f"Novo dado recebido: \n{job_data.attributes}\nRecebido em {now}\nDia da semana: {weekday}\nFeriado: {is_holiday}\n\n"
             "Com base na análise, responda de forma objetiva, resumida e direta com uma das seguintes opções:\n"
             "'true': Se o novo dado segue o mesmo padrão do histórico fornecido.\n"
             "'false': Se o novo dado apresenta um padrão incomum dentro do histórico.\n"
-            "A sua resposta obrigatóriamente deve ser formatada em um JSON contendo uma chave com o resultado da análise (true/false) e uma chave contendo a explicação resumida. Exemplo:\n"
+            "Como saída a resposta deveobrigatóriamente deve ser formatada em um JSON contendo uma chave com o resultado da análise (true/false) e uma chave contendo a explicação resumida, caso a decisão tenha sido devido à uma regra obrigatória indicar qual delas. Exemplo:\n"
             "{\n"
             "  \"result\": \"false\",\n" 
             "  \"explain\": \"O novo dado apresenta uma anomalia significativa em seu valor de 'max', que é consideravelmente mais alto que os valores históricos...\"\n"
