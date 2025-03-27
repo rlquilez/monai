@@ -48,9 +48,9 @@ def initialize_llm_client():
         raise ValueError("A variável de ambiente MONAI_LLM_KEY não está configurada.")
 
     if llm_provider == "OPENAI":
-        import openai
-        openai.api_key = llm_key
-        return openai, llm_model
+        from openai import OpenAI
+        client = OpenAI(api_key=llm_key)
+        return client, llm_model
     elif llm_provider == "GOOGLE":
         from google import genai
         client = genai.Client(api_key=llm_key)
@@ -182,7 +182,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
 
         # Chamada ao LLM com base no provedor configurado
         if os.getenv("MONAI_LLM", "OPENAI").upper() == 'OPENAI':
-            response = client.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=llm_model,
                 messages=[
                     {"role": "system", "content": "Você é um analista de qualidade de dados altamente especializado."},
