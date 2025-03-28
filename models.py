@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, String, JSON, DateTime, Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 import uuid
@@ -19,7 +19,7 @@ class JobData(Base):
     __tablename__ = "job_data"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), nullable=False)
+    job_id = Column(UUID(as_uuid=True), unique=True, nullable=False)  # Adiciona UNIQUE
     name = Column(String, nullable=False)  # Friendly name for the job
     tags = Column(JSON, nullable=True)  # Tags for filtering
     attributes = Column(JSON, nullable=True)
@@ -31,7 +31,7 @@ class Rule(Base):
     __tablename__ = "rules"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("job_data.job_id"), nullable=False)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("job_data.job_id"), nullable=False)  # Referencia job_id
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     tags = Column(JSON, nullable=True)  # Tags for filtering
