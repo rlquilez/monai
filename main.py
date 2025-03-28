@@ -194,7 +194,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "Com base na análise, responda de forma objetiva, resumida e direta com uma das seguintes opções:\n"
             "'true': Se o novo dado segue o mesmo padrão do histórico fornecido.\n"
             "'false': Se o novo dado apresenta um padrão incomum dentro do histórico.\n"
-            "Como saída a resposta deveobrigatóriamente deve ser formatada em um JSON contendo uma chave com o resultado da análise (true/false) e uma chave contendo a explicação resumida. Exemplo:\n"
+            "A resposta deve obrigatoriamente ser formatada em JSON, contendo uma chave com o resultado da análise (true/false) e uma chave com a explicação resumida. Exemplo:\n"
             "{\n"
             "  \"result\": \"false\",\n" 
             "  \"explain\": \"O novo dado apresenta uma anomalia significativa em seu valor de 'max', que é consideravelmente mais alto que os valores históricos...\"\n"
