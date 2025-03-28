@@ -199,7 +199,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "  \"result\": \"false\",\n" 
             "  \"explain\": \"O novo dado apresenta uma anomalia significativa em seu valor de 'max', que é consideravelmente mais alto que os valores históricos...\"\n"
             "}\n"
-            "Não incluir mais nenhuma informação ou caracter na repsosta além deste conteúdo de JSON, dado que a repsosta será importada como um JSON puro em outro sistema."
+            "Retorne exclusivamente o conteúdo JSON solicitado, sem adicionar qualquer informação extra ou caracteres adicionais, pois a resposta será importada diretamente como JSON puro em outro sistema."
         )
 
         #print(prompt)
