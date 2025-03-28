@@ -163,9 +163,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         ]
         
         rules = [
-            "Considere variações contextuais, padrões esperados e maior relevância nos dados históricos mais recentes.",
-            f"Para esta regra considerar apenas os novos dados recebidos e caso existam valores de 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
-            f"Para esta regra considerar apenas os novos dados recebidos e caso existam valores de 'avg' ou 'mean', 'min' e 'max', o valor de 'mean' ou 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
+            "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes.",
+            "Ao aplicar esta regra, considere apenas o último dado recebido. Caso existam valores para 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
+            "Ao aplicar esta regra, considere apenas o último dado recebido. Se houver valores para 'avg' ou 'mean', juntamente com 'min' e 'max', o valor de 'avg' ou 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
         ]
 
         # Adicionar regras adicionais para cada cenários de dados
@@ -189,8 +189,8 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "As regras abaixo são obrigatórias para a análise e resultado:\n"
             f"{mandatory_rules}\n"
             "\n"
-            f"Histórico de dados (últimas {history_days} entradas):\n{historical_attributes}\n\n"
-            f"Último dado recebido: \n{job_data.attributes}\nRecebido em {now}\nDia da semana: {weekday}\nFeriado: {is_holiday}\n\n"
+            f"Histórico de dados dos últimos {history_days} dias:\n{historical_attributes}\n\n"
+            f"Último dado recebido: \n{job_data.attributes}\nRecebido em: {now}\nDia da semana: {weekday}\nFeriado: {is_holiday}\n\n"
             "Com base na análise, responda de forma objetiva, resumida e direta com uma das seguintes opções:\n"
             "'true': Se o novo dado segue o mesmo padrão do histórico fornecido.\n"
             "'false': Se o novo dado apresenta um padrão incomum dentro do histórico.\n"
