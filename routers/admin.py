@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -40,7 +40,11 @@ def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @router.post("/login")
-def login(request: Request, username: str, password: str, db: Session = Depends(get_db)):
+def login(
+    username: str = Form(...),  # Accept the `username` field as form data
+    password: str = Form(...),  # Accept the `password` field as form data
+    db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
