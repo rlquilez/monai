@@ -14,3 +14,4 @@ openai           # Cliente para interagir com a API OpenAI
 google-genai     # Cliente para interagir com a API Gemini (Google)
 anthropic        # Cliente para interagir com a API Anthropic (Sonnet)
 python-multipart # Necessário para lidar com dados de formulário
+bcrypt           # Backend para hashing de senhas
