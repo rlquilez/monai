@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia o restante do código da aplicação
 COPY . .
 
+# Executa o script para criar o usuário padrão
+RUN python create_user.py
+
 # Expõe as portas para a API e o console
 EXPOSE 8000
 EXPOSE 8001
