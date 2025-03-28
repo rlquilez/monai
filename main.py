@@ -161,11 +161,11 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             }
             for data in historical_data
         ]
-        
+
         rules = [
             "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes.",
-            "Ao aplicar esta regra, considere apenas o último dado recebido. Caso existam valores para 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
-            "Ao aplicar esta regra, considere apenas o último dado recebido. Se houver valores para 'avg' ou 'mean', juntamente com 'min' e 'max', o valor de 'avg' ou 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
+            "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Caso existam valores para 'min' e 'max', o valor de 'min' deve ser menor ou igual ao valor de 'max'.",
+            "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'avg' ou 'mean', juntamente com 'min' e 'max', o valor de 'avg' ou 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
         ]
 
         # Adicionar regras adicionais para cada cenários de dados
