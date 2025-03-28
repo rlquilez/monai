@@ -15,12 +15,12 @@ def create_job(job: JobDataCreate, db: Session = Depends(get_db)):
     db.refresh(new_job)
     return new_job
 
-@router.get("/", response_model=List[JobDataResponse])
+@router.get("/", response_model=list[JobDataResponse])
 def list_jobs(db: Session = Depends(get_db)):
     return db.query(JobData).all()
 
 @router.put("/{job_id}", response_model=JobDataResponse)
-def update_job(job_id: UUID, job: JobDataCreate, db: Session = Depends(get_db)):
+def update_job(job_id: str, job: JobDataCreate, db: Session = Depends(get_db)):
     existing_job = db.query(JobData).filter(JobData.id == job_id).first()
     if not existing_job:
         raise HTTPException(status_code=404, detail="Job não encontrado")
@@ -30,7 +30,7 @@ def update_job(job_id: UUID, job: JobDataCreate, db: Session = Depends(get_db)):
     return existing_job
 
 @router.delete("/{job_id}")
-def delete_job(job_id: UUID, db: Session = Depends(get_db)):
+def delete_job(job_id: str, db: Session = Depends(get_db)):
     job = db.query(JobData).filter(JobData.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job não encontrado")
