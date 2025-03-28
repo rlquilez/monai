@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Jobs</title>
+</head>
+<body>
+    <h1>Manage Jobs</h1>
+    <ul>
+        {% for job in jobs %}
+        <li>{{ job.name }} - Tags: {{ job.tags }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

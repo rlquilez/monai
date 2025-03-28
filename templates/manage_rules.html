@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Rules</title>
+</head>
+<body>
+    <h1>Manage Rules</h1>
+    <ul>
+        {% for rule in rules %}
+        <li>{{ rule.name }} - Tags: {{ rule.tags }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

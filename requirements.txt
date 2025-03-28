@@ -3,10 +3,13 @@ uvicorn[standard]  # Servidor ASGI para rodar a aplicação FastAPI
 sqlalchemy       # ORM para interagir com o banco de dados
 psycopg2-binary  # Driver PostgreSQL para Python
 pydantic         # Validação de dados e esquemas
+jinja2           # Renderização de templates HTML para o console administrativo
+python-dotenv    # Para carregar variáveis de ambiente de arquivos .env
+passlib          # Para hashing de senhas (usado na autenticação)
+python-jose      # Para geração e validação de tokens JWT
+httpx            # Cliente HTTP para interagir com APIs
 holidays         # Biblioteca para calcular feriados
+pytz             # Biblioteca para lidar com timezones
 openai           # Cliente para interagir com a API OpenAI
 google-genai     # Cliente para interagir com a API Gemini (Google)
 anthropic        # Cliente para interagir com a API Anthropic (Sonnet)
-python-dotenv    # Para carregar variáveis de ambiente de arquivos .env
-httpx            # Cliente HTTP para interagir com APIs
-pytz             # Biblioteca para lidar com timezones
