@@ -9,3 +9,4 @@ router = APIRouter()
 def get_dashboard_data(db: Session = Depends(get_db)):
     logs = db.query(QueryLog).all()
     return {"total_queries": len(logs)}
+
