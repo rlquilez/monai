@@ -163,8 +163,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         ]
 
         rules = [
-            "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes.",
-            "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'max', o valor de 'max' deve ser maior que o valor de 'min'."
+            "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
         ]
 
         # Adicionar regras adicionais para cada cenários de dados
@@ -221,7 +220,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     system_instruction="Você é um analista de qualidade de dados altamente especializado.",
-                    max_output_tokens=MAX_TOKENS,
+                    #max_output_tokens=MAX_TOKENS,
                     temperature=0
                 )
             )
