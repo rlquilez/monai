@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Inicializar a aplicação FastAPI com informações personalizadas
 app = FastAPI(
-    title="MonAI API",
+    title="MonAI API.",
     description="""
     MonAI é uma aplicação para detecção de anomalias em entregas recorrentes de arquivos de dados.
     
