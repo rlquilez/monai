@@ -5,7 +5,7 @@ from datetime import datetime
 
 class JobDataCreate(BaseModel):
     job_id: UUID
-    monai_history_days: Optional[int] = None  # Adicionado como campo separado
+    monai_history_executions: Optional[int] = None  # Adicionado como campo separado
     attributes: Optional[Dict[str, Any]]
 
 class JobDataResponse(JobDataCreate):
