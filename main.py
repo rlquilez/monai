@@ -35,7 +35,7 @@ app = FastAPI(
     version="1.0.0",
     contact={
         "name": "Equipe MonAI",
-        "email": "suporte@monai.com",
+        "email": "rodrigo@quilez.com.br",
     },
     license_info={
         "name": "MIT License",
