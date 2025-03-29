@@ -11,6 +11,7 @@ import holidays
 from typing import Union
 import json
 import pytz  # Biblioteca para lidar com timezones
+from llm_client import initialize_llm_client, send_prompt_to_llm
 
 # Verificar e criar tabelas no banco de dados
 def create_tables():
@@ -60,31 +61,8 @@ def get_current_time():
     now_utc = datetime.utcnow()
     return now_utc.astimezone(timezone)
 
-# Inicializar o cliente LLM com base nas variáveis de ambiente
-def initialize_llm_client():
-    llm_provider = os.getenv("MONAI_LLM", "OPENAI").upper()
-    llm_model = os.getenv("MONAI_LLM_MODEL", "gpt-4")
-    llm_key = os.getenv("MONAI_LLM_KEY")
-
-    if not llm_key:
-        raise ValueError("A variável de ambiente MONAI_LLM_KEY não está configurada.")
-
-    if llm_provider == "OPENAI":
-        from openai import OpenAI
-        client = OpenAI(api_key=llm_key)
-        return client, llm_model
-    elif llm_provider == "GOOGLE":
-        from google import genai
-        client = genai.Client(api_key=llm_key)
-        return client, llm_model
-    elif llm_provider == "ANTHROPIC":
-        from anthropic import Anthropic
-        return Anthropic(api_key=llm_key), llm_model
-    else:
-        raise ValueError(f"Provedor de LLM desconhecido: {llm_provider}")
-
 # Configuração do cliente LLM
-client, llm_model = initialize_llm_client()
+client, llm_model, llm_provider = initialize_llm_client()
 
 # Configuração de variáveis de ambiente
 HISTORY_DAYS = int(os.getenv("MONAI_HISTORY_DAYS", 30))  # Padrão: 30 dias
@@ -248,81 +226,21 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "Retorne exclusivamente o conteúdo JSON solicitado, sem adicionar qualquer informação extra ou caracteres adicionais, pois a resposta será importada diretamente como JSON puro em outro sistema."
         )
 
-        #print(prompt)
+        # Enviar o prompt ao LLM
+        evaluation = send_prompt_to_llm(client, llm_model, llm_provider, prompt, max_tokens=MAX_TOKENS)
 
-        # Chamada ao LLM com base no provedor configurado
-        if os.getenv("MONAI_LLM", "OPENAI").upper() == 'OPENAI':
-            response = client.chat.completions.create(
-                model=llm_model,
-                messages=[
-                    {"role": "system", "content": "Você é um analista de qualidade de dados altamente especializado."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=MAX_TOKENS,
-                temperature=0
-            )
-        elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'GOOGLE':
-            from google.genai import types
-            response = client.models.generate_content(
-                model=llm_model,
-                contents=[prompt],
-                config=types.GenerateContentConfig(
-                    system_instruction="Você é um analista de qualidade de dados altamente especializado.",
-                    #max_output_tokens=MAX_TOKENS,
-                    temperature=0
-                )
-            )
-        elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'ANTHROPIC':
-            response = client.messages.create(
-                model=llm_model,
-                system="Você é um analista de qualidade de dados altamente especializado. Sua tarefa é avaliar minuciosamente se os dados fornecidos seguem o mesmo padrão ou se há alguma anomalia.",
-                max_tokens=MAX_TOKENS,
-                temperature=0,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
-        else:
-            raise ValueError("Cliente LLM não suportado.")
-
-        # Obter a resposta do modelo
-        if os.getenv("MONAI_LLM", "OPENAI").upper() == 'OPENAI':
-            evaluation = response.choices[0].message.content.strip()
-        elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'GOOGLE':
-            evaluation = getattr(response, "text", "").strip()
-        elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'ANTHROPIC':
-            evaluation = getattr(response.content[0], "text", "").strip()
-        else:
-            raise ValueError("Cliente LLM não suportado.")
-
-        # Verificar se a resposta está vazia
-        if not evaluation:
-            raise HTTPException(status_code=500, detail="A resposta do modelo está vazia ou inválida.")
-
-        # Limpar a resposta para garantir que seja um JSON puro
-        #print('Antes limpeza:', evaluation)
+        # Limpar e processar a resposta
         evaluation = clean_response(evaluation)
-        #print('Depois limpeza:', evaluation)
+        evaluation = json.loads(evaluation)
 
-        # Avaliar a resposta do modelo
-        try:
-            evaluation = json.loads(evaluation)  # Tentar interpretar a resposta como JSON
-            
-            # Verificar se as chaves esperadas estão presentes
-            if "result" not in evaluation or "explain" not in evaluation:
-                raise ValueError("A resposta do modelo não contém as chaves esperadas: 'result' e 'explain'.")
+        # Verificar se as chaves esperadas estão presentes
+        if "result" not in evaluation or "explain" not in evaluation:
+            raise ValueError("A resposta do modelo não contém as chaves esperadas: 'result' e 'explain'.")
 
-            # Processar o resultado com base no valor de 'result'
-            result = evaluation["result"].lower()
-            explanation = evaluation["explain"]
+        # Processar o resultado com base no valor de 'result'
+        result = evaluation["result"].lower()
+        explanation = evaluation["explain"]
 
-        except json.JSONDecodeError:
-            # Caso a resposta não seja um JSON válido
-            raise HTTPException(status_code=400, detail="A resposta do modelo não está no formato JSON esperado.")
-        except Exception as e:
-            # Tratar outros erros
-            raise HTTPException(status_code=400, detail=str(e))
-        
         # Registrar a consulta no QueryLog
         ip_address = request.client.host
         query_log = QueryLog(
