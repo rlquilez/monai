@@ -65,7 +65,7 @@ def get_current_time():
 client, llm_model, llm_provider = initialize_llm_client()
 
 # Configuração de variáveis de ambiente
-HISTORY_DAYS = int(os.getenv("MONAI_HISTORY_DAYS", 30))  # Padrão: 30 dias
+HISTORY_EXECUTIONS = int(os.getenv("MONAI_HISTORY_EXECUTIONS", 30))  # Padrão: 30 execuções
 MAX_TOKENS = int(os.getenv("MONAI_MAX_TOKENS", 200))  # Padrão: 200 tokens
 
 # Dependency para obter a sessão do banco de dados
@@ -116,24 +116,20 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         weekday = now.strftime("%A")
         br_holidays = holidays.Brazil()
         is_holiday = now.date() in br_holidays
-
-        # Determinar o número de dias de histórico
-        history_days = (
-            job_data.monai_history_days  # 1. Valor enviado na requisição
-            or int(os.getenv("MONAI_HISTORY_DAYS", 30))  # 2. Variável de ambiente
+        
+        # Determinar o número de execuções de histórico
+        history_executions = (
+            job_data.monai_history_executions  # 1. Valor enviado na requisição
+            or int(os.getenv("MONAI_HISTORY_EXECUTIONS", 30))  # 2. Variável de ambiente
         )
 
-        if history_days <= 0:
-            raise ValueError("O número de dias de histórico deve ser maior que zero.")
+        if history_executions <= 0:
+            raise ValueError("O número de histórico de execuções deve ser maior que zero.")
 
-        # Consultar dados históricos com base no número de dias configurado e na coluna received_at
-        start_date = now - timedelta(days=history_days)
-        start_date_utc = start_date.astimezone(pytz.utc)
-
+        # Consultar os registros mais recentes com base no número de execuções
         historical_data = db.query(JobData).filter(
-            JobData.job_id == job_data.job_id,
-            JobData.received_at >= start_date_utc
-        ).order_by(JobData.received_at.desc()).all()
+            JobData.job_id == job_data.job_id
+        ).order_by(JobData.received_at.desc()).limit(history_executions).all()
 
         # Criar novo registro no banco de dados
         new_job_data = JobData(
@@ -148,8 +144,8 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         db.commit()
         db.refresh(new_job_data)
 
-        if len(historical_data) < history_days:
-            return {"message": f"É necessário pelo menos {history_days} dias de dados históricos para avaliação, mas apenas {len(historical_data)} dias estão disponíveis."}
+        if len(historical_data) < history_executions:
+            return {"message": f"É necessário pelo menos {history_executions} execuções de dados históricos para avaliação, mas apenas {len(historical_data)} estão disponíveis."}
 
         # Preparar os dados para enviar ao LLM
         historical_attributes = [
@@ -213,7 +209,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "As regras abaixo são obrigatórias para a análise e resultado:\n"
             f"{mandatory_rules}\n"
             "\n"
-            f"Histórico de dados dos últimos {history_days} dias:\n{historical_attributes}\n\n"
+            f"Histórico de dados das últimas {history_executions} execuções:\n{historical_attributes}\n\n"
             f"Último conjunto de metadados recebido: \n{job_data.attributes}\nRecebido em: {now}\nDia da semana: {weekday}\nFeriado: {is_holiday}\n\n"
             "Saída esperada: Com base na análise, responda de forma objetiva, resumida e direta com uma das seguintes opções:\n"
             "'true': Se o novo dado segue o mesmo padrão do histórico fornecido.\n"
