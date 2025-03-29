@@ -49,7 +49,7 @@ create_tables()
 
 # Configurar timezone
 def get_timezone():
-    tz_name = os.getenv("TZ", "UTC")  # Padrão: UTC
+    tz_name = os.getenv("TZ", "America/Sao_Paulo")  # Padrão: America/Sao_Paulo
     try:
         return pytz.timezone(tz_name)
     except pytz.UnknownTimeZoneError:
@@ -158,7 +158,7 @@ def log_query(
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
         # Obter o horário atual no timezone configurado
-        now = get_current_time()
+        now = get_current_time()  # Já retorna no timezone America/Sao_Paulo
         weekday = now.strftime("%A")  # Dia da semana
         month = now.strftime("%B")  # Nome do mês
         br_holidays = holidays.Brazil()
@@ -188,7 +188,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             id=uuid.uuid4(),
             job_id=job_data.job_id,
             attributes=job_data.attributes,
-            received_at=now,
+            received_at=now,  # Armazena o horário no timezone America/Sao_Paulo
             weekday=weekday,
             month=month,
             is_holiday=is_holiday
