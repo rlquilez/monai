@@ -360,6 +360,14 @@ async def generate_load(
     """
     Gera cargas na aplicação com base nos parâmetros fornecidos.
     """
+
+    print("Endpoint /generate-load chamado com os seguintes parâmetros:")
+    print(f"endpoint: {endpoint}, job_id: {job_id}, history_days: {history_days}")
+    print(f"quantidade_linhas: {quantidade_linhas}, tamanho_arquivo: {tamanho_arquivo}")
+    print(f"min_value: {min_value}, avg_value: {avg_value}, max_value: {max_value}")
+    print(f"stddev: {stddev}, repeat: {repeat}, delay: {delay}")
+    print(f"variation_factor: {variation_factor}, trend: {trend}")
+
     base_payload = {
         "job_id": job_id,
         "monai_history_days": str(history_days),

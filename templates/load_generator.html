@@ -80,24 +80,34 @@
         <button type="submit">Gerar Cargas</button>
     </form>
     <script>
+        console.log("JavaScript carregado!"); // Log para verificar se o script está sendo executado
+
         const form = document.querySelector("form");
         form.addEventListener("submit", async (event) => {
             event.preventDefault(); // Impede o envio padrão do formulário
+            console.log("Formulário enviado!"); // Log para verificar se o evento foi capturado
 
             const formData = new FormData(form);
-            const response = await fetch(form.action, {
-                method: "POST",
-                body: formData,
-            });
+            console.log("Dados do formulário:", Object.fromEntries(formData.entries())); // Log dos dados enviados
 
-            if (response.ok) {
-                const result = await response.json();
-                alert("Cargas geradas com sucesso!");
-                console.log(result);
-            } else {
-                const error = await response.json();
-                alert("Erro ao gerar cargas: " + error.detail);
-                console.error(error);
+            try {
+                const response = await fetch(form.action, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert("Cargas geradas com sucesso!");
+                    console.log("Resposta do servidor:", result);
+                } else {
+                    const error = await response.json();
+                    alert("Erro ao gerar cargas: " + error.detail);
+                    console.error("Erro do servidor:", error);
+                }
+            } catch (err) {
+                console.error("Erro na requisição:", err);
+                alert("Erro ao enviar a requisição. Verifique o console para mais detalhes.");
             }
         });
     </script>
