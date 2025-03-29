@@ -1,26 +1,20 @@
 import os
-from fastapi import FastAPI, HTTPException, Request, Depends, Form
+from fastapi import FastAPI, HTTPException, Request, Depends
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base, JobData, QueryLog
 from schemas import JobDataCreate, JobDataResponse
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
 import pytz
 import holidays
 import uuid
 import json
-import requests
-import time
-import random
 from typing import Union
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
 
 # Inicializar a aplicação FastAPI com informações personalizadas
 app = FastAPI(
-    title="MonAI API.",
+    title="MonAI API",
     description="""
     MonAI é uma aplicação para detecção de anomalias em entregas recorrentes de arquivos de dados.
     
@@ -35,21 +29,12 @@ app = FastAPI(
     version="1.0.0",
     contact={
         "name": "Equipe MonAI",
-        "email": "rodrigo@quilez.com.br",
+        "email": "suporte@monai.com",
     },
     license_info={
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-)
-
-# Configurar CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Substitua "*" por uma lista de origens específicas, se necessário.
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 # Configurar timezone
@@ -61,12 +46,6 @@ def get_timezone():
         raise ValueError(f"Timezone inválido: {tz_name}")
 
 timezone = get_timezone()
-
-def get_current_time():
-    """
-    Retorna o horário atual no timezone configurado.
-    """
-    return datetime.now(timezone)
 
 # Verificar e criar tabelas no banco de dados
 def create_tables():
@@ -347,91 +326,3 @@ async def recreate_tables(db: Session = Depends(get_db)):
         return JSONResponse(content={"message": "Tabelas recriadas com sucesso."}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao recriar tabelas: {str(e)}")
-
-# Configurar templates
-templates = Jinja2Templates(directory="templates")
-
-@app.get("/load-generator", response_class=HTMLResponse, tags=["Administração"])
-async def load_generator_page(request: Request):
-    """
-    Renderiza a página para gerar cargas na aplicação.
-    """
-    return templates.TemplateResponse("load_generator.html", {"request": request})
-
-class LoadGeneratorRequest(BaseModel):
-    endpoint: str
-    job_id: str
-    history_days: int
-    quantidade_linhas: int
-    tamanho_arquivo: int
-    min_value: int
-    avg_value: int
-    max_value: int
-    stddev: int
-    repeat: int
-    delay: int
-    variation_factor: float
-    trend: str
-
-@app.post("/generate-load", tags=["Administração"])
-async def generate_load(request: LoadGeneratorRequest):
-    """
-    Gera cargas na aplicação com base nos parâmetros fornecidos.
-    """
-
-    print("Endpoint /generate-load chamado com os seguintes parâmetros:")
-    print(f"endpoint: {request.endpoint}, job_id: {request.job_id}, history_days: {request.history_days}")
-    print(f"quantidade_linhas: {request.quantidade_linhas}, tamanho_arquivo: {request.tamanho_arquivo}")
-    print(f"min_value: {request.min_value}, avg_value: {request.avg_value}, max_value: {request.max_value}")
-    print(f"stddev: {request.stddev}, repeat: {request.repeat}, delay: {request.delay}")
-    print(f"variation_factor: {request.variation_factor}, trend: {request.trend}")
-
-    base_payload = {
-        "job_id": request.job_id,
-        "monai_history_days": str(request.history_days),
-        "attributes": {
-            "quantidade_linhas": str(request.quantidade_linhas),
-            "tamanho_arquivo": str(request.tamanho_arquivo),
-            "min": str(request.min_value),
-            "avg": str(request.avg_value),
-            "max": str(request.max_value),
-            "stddev": str(request.stddev),
-        },
-    }
-
-    headers = {"Content-Type": "application/json"}
-
-    def generate_payload(base_payload, variation_factor, trend=None, step=0.05):
-        attributes = base_payload["attributes"]
-        if trend == "up":
-            scale_factor = 1 + step
-        elif trend == "down":
-            scale_factor = 1 - step
-        else:
-            scale_factor = 1 + random.uniform(-variation_factor, variation_factor)
-
-        new_attributes = {}
-        for key, value in attributes.items():
-            if key in ["quantidade_linhas", "tamanho_arquivo", "min", "avg", "max", "stddev"]:
-                base_value = int(value)
-                new_value = int(base_value * scale_factor)
-                if key == "max":
-                    new_value = min(new_value, 999)
-                else:
-                    new_value = max(new_value, 0)
-                new_attributes[key] = str(new_value)
-            else:
-                new_attributes[key] = value
-
-        new_payload = base_payload.copy()
-        new_payload["attributes"] = new_attributes
-        return new_payload
-
-    responses = []
-    for _ in range(request.repeat):
-        modified_payload = generate_payload(base_payload, request.variation_factor, request.trend)
-        response = requests.post(request.endpoint, data=json.dumps(modified_payload), headers=headers)
-        responses.append({"status_code": response.status_code, "response_text": response.text})
-        time.sleep(request.delay)
-
-    return {"message": "Cargas geradas com sucesso!!", "responses": responses}
