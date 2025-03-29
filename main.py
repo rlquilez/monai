@@ -15,6 +15,7 @@ import requests
 import time
 import random
 from typing import Union
+from pydantic import BaseModel
 
 # Inicializar a aplicação FastAPI com informações personalizadas
 app = FastAPI(
@@ -341,43 +342,44 @@ async def load_generator_page(request: Request):
     """
     return templates.TemplateResponse("load_generator.html", {"request": request})
 
+class LoadGeneratorRequest(BaseModel):
+    endpoint: str
+    job_id: str
+    history_days: int
+    quantidade_linhas: int
+    tamanho_arquivo: int
+    min_value: int
+    avg_value: int
+    max_value: int
+    stddev: int
+    repeat: int
+    delay: int
+    variation_factor: float
+    trend: str
+
 @app.post("/generate-load", tags=["Administração"])
-async def generate_load(
-    endpoint: str = Form(...),
-    job_id: str = Form(...),
-    history_days: int = Form(...),
-    quantidade_linhas: int = Form(...),
-    tamanho_arquivo: int = Form(...),
-    min_value: int = Form(...),
-    avg_value: int = Form(...),
-    max_value: int = Form(...),
-    stddev: int = Form(...),
-    repeat: int = Form(...),
-    delay: int = Form(...),
-    variation_factor: float = Form(...),
-    trend: str = Form(...)
-):
+async def generate_load(request: LoadGeneratorRequest):
     """
     Gera cargas na aplicação com base nos parâmetros fornecidos.
     """
 
     print("Endpoint /generate-load chamado com os seguintes parâmetros:")
-    print(f"endpoint: {endpoint}, job_id: {job_id}, history_days: {history_days}")
-    print(f"quantidade_linhas: {quantidade_linhas}, tamanho_arquivo: {tamanho_arquivo}")
-    print(f"min_value: {min_value}, avg_value: {avg_value}, max_value: {max_value}")
-    print(f"stddev: {stddev}, repeat: {repeat}, delay: {delay}")
-    print(f"variation_factor: {variation_factor}, trend: {trend}")
+    print(f"endpoint: {request.endpoint}, job_id: {request.job_id}, history_days: {request.history_days}")
+    print(f"quantidade_linhas: {request.quantidade_linhas}, tamanho_arquivo: {request.tamanho_arquivo}")
+    print(f"min_value: {request.min_value}, avg_value: {request.avg_value}, max_value: {request.max_value}")
+    print(f"stddev: {request.stddev}, repeat: {request.repeat}, delay: {request.delay}")
+    print(f"variation_factor: {request.variation_factor}, trend: {request.trend}")
 
     base_payload = {
-        "job_id": job_id,
-        "monai_history_days": str(history_days),
+        "job_id": request.job_id,
+        "monai_history_days": str(request.history_days),
         "attributes": {
-            "quantidade_linhas": str(quantidade_linhas),
-            "tamanho_arquivo": str(tamanho_arquivo),
-            "min": str(min_value),
-            "avg": str(avg_value),
-            "max": str(max_value),
-            "stddev": str(stddev),
+            "quantidade_linhas": str(request.quantidade_linhas),
+            "tamanho_arquivo": str(request.tamanho_arquivo),
+            "min": str(request.min_value),
+            "avg": str(request.avg_value),
+            "max": str(request.max_value),
+            "stddev": str(request.stddev),
         },
     }
 
@@ -410,10 +412,10 @@ async def generate_load(
         return new_payload
 
     responses = []
-    for _ in range(repeat):
-        modified_payload = generate_payload(base_payload, variation_factor, trend)
-        response = requests.post(endpoint, data=json.dumps(modified_payload), headers=headers)
+    for _ in range(request.repeat):
+        modified_payload = generate_payload(base_payload, request.variation_factor, request.trend)
+        response = requests.post(request.endpoint, data=json.dumps(modified_payload), headers=headers)
         responses.append({"status_code": response.status_code, "response_text": response.text})
-        time.sleep(delay)
+        time.sleep(request.delay)
 
     return {"message": "Cargas geradas com sucesso!!", "responses": responses}

@@ -80,20 +80,20 @@
         <button type="submit">Gerar Cargas</button>
     </form>
     <script>
-        console.log("JavaScript carregado!"); // Log para verificar se o script está sendo executado
-
         const form = document.querySelector("form");
         form.addEventListener("submit", async (event) => {
             event.preventDefault(); // Impede o envio padrão do formulário
-            console.log("Formulário enviado!"); // Log para verificar se o evento foi capturado
 
             const formData = new FormData(form);
-            console.log("Dados do formulário:", Object.fromEntries(formData.entries())); // Log dos dados enviados
+            const jsonPayload = Object.fromEntries(formData.entries()); // Converte os dados do formulário para JSON
 
             try {
                 const response = await fetch(form.action, {
                     method: "POST",
-                    body: formData,
+                    headers: {
+                        "Content-Type": "application/json", // Define o cabeçalho como JSON
+                    },
+                    body: JSON.stringify(jsonPayload), // Envia os dados como JSON
                 });
 
                 if (response.ok) {
