@@ -255,7 +255,8 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             referer=referer,
             fingerprint=fingerprint,
             received_at=now,
-            ip_address=ip_address
+            ip_address=ip_address,
+            monai_history_executions=history_executions
         )
         db.add(query_log)
         db.commit()

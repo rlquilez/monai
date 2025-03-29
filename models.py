@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, JSON, DateTime, Boolean, Text
+from sqlalchemy import Column, String, JSON, DateTime, Boolean, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 import uuid
@@ -28,3 +28,4 @@ class QueryLog(Base):
     fingerprint = Column(String, nullable=False)  # Armazena o fingerprint
     received_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     ip_address = Column(String, nullable=False)
+    monai_history_executions = Column(Integer, nullable=False)  # Nova coluna para armazenar o valor
