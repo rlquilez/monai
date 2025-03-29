@@ -108,6 +108,51 @@ def clean_response(response: str) -> str:
         # Caso não encontre '{' ou '}', retorna um erro
         raise ValueError("A resposta não contém um JSON válido.")
 
+def log_query(
+    db: Session,
+    job_id: str,
+    attributes: dict,
+    result: str,
+    explanation: str,
+    ip_address: str,
+    user_agent: str,
+    referer: str,
+    received_at: datetime,
+    monai_history_executions: int
+):
+    """
+    Função para registrar informações no QueryLog.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        job_id (str): ID do job.
+        attributes (dict): Atributos do job.
+        result (str): Resultado da análise.
+        explanation (str): Explicação do resultado.
+        ip_address (str): Endereço IP do cliente.
+        user_agent (str): User-Agent do cliente.
+        referer (str): Referer do cliente.
+        received_at (datetime): Data e hora do registro.
+        monai_history_executions (int): Número de execuções históricas consideradas.
+    """
+    # Criar fingerprint único
+    raw_fingerprint = f"{ip_address}-{user_agent}-{referer}"
+    fingerprint = hashlib.sha256(raw_fingerprint.encode()).hexdigest()
+
+    # Criar o registro no QueryLog
+    query_log = QueryLog(
+        job_id=job_id,
+        attributes=attributes,
+        result=result,
+        explanation=explanation,
+        referer=referer,
+        fingerprint=fingerprint,
+        received_at=received_at,
+        ip_address=ip_address,
+        monai_history_executions=monai_history_executions
+    )
+    db.add(query_log)
+    db.commit()
 
 @app.post("/jobs/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
@@ -146,6 +191,18 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         db.refresh(new_job_data)
 
         if len(historical_data) < history_executions:
+            log_query(
+                db=db,
+                job_id=str(job_data.job_id),
+                attributes=job_data.attributes,
+                result="",
+                explanation="",
+                ip_address=ip_address,
+                user_agent=user_agent,
+                referer=referer,
+                received_at=now,
+                monai_history_executions=history_executions
+            )
             return {"message": f"É necessário pelo menos {history_executions} execuções de dados históricos para avaliação, mas apenas {len(historical_data)} estão disponíveis."}
 
         # Preparar os dados para enviar ao LLM
@@ -243,23 +300,18 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         user_agent = request.headers.get("user-agent", "unknown")  # Obter o user_agent do cabeçalho
         referer = request.headers.get("referer", "unknown")  # Obter o referer do cabeçalho
 
-        # Criar fingerprint único
-        raw_fingerprint = f"{ip_address}-{user_agent}-{referer}"
-        fingerprint = hashlib.sha256(raw_fingerprint.encode()).hexdigest()
-
-        query_log = QueryLog(
+        log_query(
+            db=db,
             job_id=str(job_data.job_id),
             attributes=job_data.attributes,
             result=result,
             explanation=explanation,
-            referer=referer,
-            fingerprint=fingerprint,
-            received_at=now,
             ip_address=ip_address,
+            user_agent=user_agent,
+            referer=referer,
+            received_at=now,
             monai_history_executions=history_executions
         )
-        db.add(query_log)
-        db.commit()
         
         if result == "true":
             return {"result": result, "explanation": explanation}
@@ -278,8 +330,8 @@ async def recreate_tables(db: Session = Depends(get_db)):
     Remove todas as tabelas existentes e as recria em branco.
     """
     try:
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.drop_all(bind=engine)  # Remove todas as tabelas
+        Base.metadata.create_all(bind=engine)  # Recria as tabelas
         return JSONResponse(content={"message": "Tabelas recriadas com sucesso."}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao recriar tabelas: {str(e)}")
