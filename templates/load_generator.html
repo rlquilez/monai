@@ -33,9 +33,9 @@
 </head>
 <body>
     <h1>Gerador de Cargas</h1>
-    <form action="/generate-load" method="post">
+    <form action="/generate-load" method="post" id="load-generator-form">
         <label for="endpoint">Endpoint da API:</label>
-        <input type="text" id="endpoint" name="endpoint" value="http://10.20.0.21:8009/jobs/" required>
+        <input type="text" id="endpoint" name="endpoint" value="http://127.0.0.1:8000/generate-load" required>
 
         <label for="job_id">Job ID:</label>
         <input type="text" id="job_id" name="job_id" value="123e4567-e89b-12d3-a456-426614174001" required>
@@ -80,7 +80,7 @@
         <button type="submit">Gerar Cargas</button>
     </form>
     <script>
-        const form = document.querySelector("form");
+        const form = document.getElementById("load-generator-form");
         form.addEventListener("submit", async (event) => {
             event.preventDefault(); // Impede o envio padrão do formulário
 

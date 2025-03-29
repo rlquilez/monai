@@ -16,6 +16,7 @@ import time
 import random
 from typing import Union
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 # Inicializar a aplicação FastAPI com informações personalizadas
 app = FastAPI(
@@ -40,6 +41,15 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
+)
+
+# Configurar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Substitua "*" por uma lista de origens específicas, se necessário.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Configurar timezone
