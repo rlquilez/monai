@@ -130,7 +130,7 @@ def clean_response(response: str) -> str:
         raise ValueError("A resposta não contém um JSON válido.")
 
 
-@app.post("/jobs/", response_model=Union[JobDataResponse, dict])
+@app.post("/jobs/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
         # Obter o horário atual no timezone configurado
