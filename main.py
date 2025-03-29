@@ -17,8 +17,30 @@ def create_tables():
     print("Verificando e criando tabelas no banco de dados, se necessário")
     Base.metadata.create_all(bind=engine)
 
-# Inicializar a aplicação FastAPI
-app = FastAPI()
+# Inicializar a aplicação FastAPI com informações personalizadas
+app = FastAPI(
+    title="MonAI API",
+    description="""
+    MonAI é uma aplicação para detecção de anomalias em entregas recorrentes de arquivos de dados.
+    
+    ## Funcionalidades:
+    - **Jobs**: Gerenciamento de jobs (CRUD).
+    - **Regras**: Gerenciamento de regras mandatórias associadas aos jobs.
+    - **Dashboard**: Visualização de consultas e detecção de anomalias.
+    - **Administração**: Recriação de tabelas e gerenciamento de usuários.
+
+    Explore os endpoints abaixo para interagir com a API.
+    """,
+    version="1.0.0",
+    contact={
+        "name": "Equipe MonAI",
+        "email": "suporte@monai.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+)
 
 # Chamar a função para verificar e criar tabelas
 create_tables()
