@@ -12,6 +12,7 @@ from typing import Union
 import json
 import pytz  # Biblioteca para lidar com timezones
 from llm_client import initialize_llm_client, send_prompt_to_llm
+import hashlib  # Import necessário para gerar o fingerprint
 
 # Verificar e criar tabelas no banco de dados
 def create_tables():
@@ -239,15 +240,22 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
 
         # Registrar a consulta no QueryLog
         ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "unknown")  # Obter o user_agent do cabeçalho
+        referer = request.headers.get("referer", "unknown")  # Obter o referer do cabeçalho
+
+        # Criar fingerprint único
+        raw_fingerprint = f"{ip_address}-{user_agent}-{referer}"
+        fingerprint = hashlib.sha256(raw_fingerprint.encode()).hexdigest()
+
         query_log = QueryLog(
             job_id=str(job_data.job_id),
+            attributes=job_data.attributes,
+            result=result,
+            explanation=explanation,
+            referer=referer,
+            fingerprint=fingerprint,
             received_at=now,
-            ip_address=ip_address,
-            payload={
-                "job_id": str(job_data.job_id),
-                "attributes": job_data.attributes,
-                "explanation": result + ": " + explanation
-            }
+            ip_address=ip_address
         )
         db.add(query_log)
         db.commit()
