@@ -1,31 +1,45 @@
 import os
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from sqlalchemy.orm import Session
-from fastapi import Depends
 from database import SessionLocal, engine
 from models import Base, JobData, QueryLog
 from schemas import JobDataCreate, JobDataResponse
-import uuid
+from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
+import pytz
 import holidays
-from typing import Union
+import uuid
 import json
-import pytz  # Biblioteca para lidar com timezones
+from typing import Union
 
-# Verificar e criar tabelas no banco de dados
-def create_tables():
-    print("Verificando e criando tabelas no banco de dados, se necessário")
-    Base.metadata.create_all(bind=engine)
+# Inicializar a aplicação FastAPI com informações personalizadas
+app = FastAPI(
+    title="MonAI API",
+    description="""
+    MonAI é uma aplicação para detecção de anomalias em entregas recorrentes de arquivos de dados.
+    
+    ## Funcionalidades:
+    - **Jobs**: Gerenciamento de jobs (CRUD).
+    - **Regras**: Gerenciamento de regras mandatórias associadas aos jobs.
+    - **Dashboard**: Visualização de consultas e detecção de anomalias.
+    - **Administração**: Recriação de tabelas e gerenciamento de usuários.
 
-# Inicializar a aplicação FastAPI
-app = FastAPI()
-
-# Chamar a função para verificar e criar tabelas
-create_tables()
+    Explore os endpoints abaixo para interagir com a API.
+    """,
+    version="1.0.0",
+    contact={
+        "name": "Equipe MonAI",
+        "email": "suporte@monai.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+)
 
 # Configurar timezone
 def get_timezone():
-    tz_name = os.getenv("TZ", "UTC")  # Padrão: UTC
+    tz_name = os.getenv("TZ", "UTC")
     try:
         return pytz.timezone(tz_name)
     except pytz.UnknownTimeZoneError:
@@ -33,40 +47,13 @@ def get_timezone():
 
 timezone = get_timezone()
 
-# Função para obter o horário atual ajustado para o timezone configurado
-def get_current_time():
-    now_utc = datetime.utcnow()
-    return now_utc.astimezone(timezone)
+# Verificar e criar tabelas no banco de dados
+def create_tables():
+    print("Verificando e criando tabelas no banco de dados, se necessário")
+    Base.metadata.create_all(bind=engine)
 
-# Inicializar o cliente LLM com base nas variáveis de ambiente
-def initialize_llm_client():
-    llm_provider = os.getenv("MONAI_LLM", "OPENAI").upper()
-    llm_model = os.getenv("MONAI_LLM_MODEL", "gpt-4")
-    llm_key = os.getenv("MONAI_LLM_KEY")
-
-    if not llm_key:
-        raise ValueError("A variável de ambiente MONAI_LLM_KEY não está configurada.")
-
-    if llm_provider == "OPENAI":
-        from openai import OpenAI
-        client = OpenAI(api_key=llm_key)
-        return client, llm_model
-    elif llm_provider == "GOOGLE":
-        from google import genai
-        client = genai.Client(api_key=llm_key)
-        return client, llm_model
-    elif llm_provider == "ANTHROPIC":
-        from anthropic import Anthropic
-        return Anthropic(api_key=llm_key), llm_model
-    else:
-        raise ValueError(f"Provedor de LLM desconhecido: {llm_provider}")
-
-# Configuração do cliente LLM
-client, llm_model = initialize_llm_client()
-
-# Configuração de variáveis de ambiente
-HISTORY_DAYS = int(os.getenv("MONAI_HISTORY_DAYS", 30))  # Padrão: 30 dias
-MAX_TOKENS = int(os.getenv("MONAI_MAX_TOKENS", 200))  # Padrão: 200 tokens
+# Chamar a função para verificar e criar tabelas
+create_tables()
 
 # Dependency para obter a sessão do banco de dados
 def get_db():
@@ -108,7 +95,7 @@ def clean_response(response: str) -> str:
         raise ValueError("A resposta não contém um JSON válido.")
 
 
-@app.post("/jobs/", response_model=Union[JobDataResponse, dict])
+@app.post("/jobs/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
         # Obter o horário atual no timezone configurado
@@ -325,3 +312,17 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/recreate-tables/", tags=["Administração"])
+async def recreate_tables(db: Session = Depends(get_db)):
+    """
+    Endpoint para recriar as tabelas no banco de dados.
+    Remove todas as tabelas existentes e as recria em branco.
+    """
+    try:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        return JSONResponse(content={"message": "Tabelas recriadas com sucesso."}, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao recriar tabelas: {str(e)}")
