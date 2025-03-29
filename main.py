@@ -62,6 +62,12 @@ def get_timezone():
 
 timezone = get_timezone()
 
+def get_current_time():
+    """
+    Retorna o horário atual no timezone configurado.
+    """
+    return datetime.now(timezone)
+
 # Verificar e criar tabelas no banco de dados
 def create_tables():
     print("Verificando e criando tabelas no banco de dados, se necessário")
