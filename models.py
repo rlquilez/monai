@@ -15,8 +15,9 @@ class JobData(Base):
     job_id = Column(UUID(as_uuid=True), nullable=False)
     attributes = Column(JSON, nullable=True)
     received_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    weekday = Column(String, nullable=False)
-    is_holiday = Column(Boolean, nullable=False)
+    weekday = Column(String, nullable=False)  # Dia da semana
+    month = Column(String, nullable=False)  # Novo campo para o mês
+    is_holiday = Column(Boolean, default=False, nullable=False)
 
 class QueryLog(Base):
     __tablename__ = "query_log"

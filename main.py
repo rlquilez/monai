@@ -159,19 +159,20 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
     try:
         # Obter o horário atual no timezone configurado
         now = get_current_time()
-        weekday = now.strftime("%A")
+        weekday = now.strftime("%A")  # Dia da semana
+        month = now.strftime("%B")  # Nome do mês
         br_holidays = holidays.Brazil()
         is_holiday = now.date() in br_holidays
 
         # Informações da origem da request para registrar a consulta no QueryLog
         ip_address = request.client.host
-        user_agent = request.headers.get("user-agent", "unknown")  # Obter o user_agent do cabeçalho
-        referer = request.headers.get("referer", "unknown")  # Obter o referer do cabeçalho
+        user_agent = request.headers.get("user-agent", "unknown")
+        referer = request.headers.get("referer", "unknown")
         
         # Determinar o número de execuções de histórico
         history_executions = (
-            job_data.monai_history_executions  # 1. Valor enviado na requisição
-            or int(os.getenv("MONAI_HISTORY_EXECUTIONS", 30))  # 2. Variável de ambiente
+            job_data.monai_history_executions
+            or int(os.getenv("MONAI_HISTORY_EXECUTIONS", 30))
         )
 
         if history_executions <= 0:
@@ -187,8 +188,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             id=uuid.uuid4(),
             job_id=job_data.job_id,
             attributes=job_data.attributes,
-            received_at=now,  # Já ajustado para o timezone configurado
+            received_at=now,
             weekday=weekday,
+            month=month,
             is_holiday=is_holiday
         )
         db.add(new_job_data)
@@ -216,6 +218,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 "attributes": data.attributes,
                 "received_at": data.received_at,
                 "weekday": data.weekday,
+                "month": data.month,
                 "is_holiday": data.is_holiday
             }
             for data in historical_data
@@ -266,20 +269,20 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             "- Análise de Séries Temporais para compreender tendências, sazonalidades e variações estruturais nos metadados.\n"
             "- Regras de Negócio e Modelos Heurísticos para identificar desvios esperados e não esperados nos dados.\n"
             "Além disso, você deve garantir que nenhuma regra obrigatória seja violada, assegurando que os dados estejam em conformidade com os requisitos estabelecidos.\n"
-            "Entre as informações disponíveis, constam o dia da semana de geração das remessas e a indicação de feriados. Essas variáveis são fundamentais para a análise, "
-            "pois os metadados podem variar conforme o contexto temporal. Sua avaliação deve considerar essas particularidades para distinguir padrões legítimos de possíveis anomalias, "
+            "Entre as informações disponíveis, constam o dia da semana e o mês e de geração das remessas, também indicando se no dia da geração é um feriado. Essas variáveis, junto com a identificação da periodicidade, "
+            "são fundamentais para a análise, pois os metadados podem variar conforme o contexto temporal. Sua avaliação deve considerar a periodicidade e essas particularidades para distinguir padrões legítimos de possíveis anomalias, "
             "garantindo um alto padrão de qualidade e confiabilidade nos dados.\n\n"
             "As regras abaixo são obrigatórias para a análise e resultado:\n"
             f"{mandatory_rules}\n"
             "\n"
             f"Histórico de dados das últimas {history_executions} execuções:\n{historical_attributes}\n\n"
-            f"Último conjunto de metadados recebido: \n{job_data.attributes}\nRecebido em: {now}\nDia da semana: {weekday}\nFeriado: {is_holiday}\n\n"
+            f"Último conjunto de metadados recebido: \n{job_data.attributes}\nRecebido em: {now}\nDia da semana: {weekday}\nMês: {month}\nFeriado: {is_holiday}\n\n"
             "Saída esperada: Com base na análise, responda de forma objetiva, resumida e direta com uma das seguintes opções:\n"
             "'true': Se o novo dado segue o mesmo padrão do histórico fornecido.\n"
             "'false': Se o novo dado apresenta um padrão incomum dentro do histórico.\n"
             "A resposta deve obrigatoriamente ser formatada em JSON, contendo uma chave com o resultado da análise (true/false) e uma chave com a explicação resumida. Exemplo:\n"
             "{\n"
-            "  \"result\": \"false\",\n" 
+            "  \"result\": \"false\",\n"
             "  \"explain\": \"O novo dado apresenta uma anomalia significativa em seu valor de 'max', que é consideravelmente mais alto que os valores históricos...\"\n"
             "}\n"
             "Retorne exclusivamente o conteúdo JSON solicitado, sem adicionar qualquer informação extra ou caracteres adicionais, pois a resposta será importada diretamente como JSON puro em outro sistema."
