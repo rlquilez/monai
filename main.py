@@ -1,15 +1,19 @@
 import os
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, Form
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base, JobData, QueryLog
 from schemas import JobDataCreate, JobDataResponse
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 from datetime import datetime, timedelta
 import pytz
 import holidays
 import uuid
 import json
+import requests
+import time
+import random
 from typing import Union
 
 # Inicializar a aplicação FastAPI com informações personalizadas
@@ -326,3 +330,82 @@ async def recreate_tables(db: Session = Depends(get_db)):
         return JSONResponse(content={"message": "Tabelas recriadas com sucesso."}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao recriar tabelas: {str(e)}")
+
+# Configurar templates
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/load-generator", response_class=HTMLResponse, tags=["Administração"])
+async def load_generator_page(request: Request):
+    """
+    Renderiza a página para gerar cargas na aplicação.
+    """
+    return templates.TemplateResponse("load_generator.html", {"request": request})
+
+@app.post("/generate-load", tags=["Administração"])
+async def generate_load(
+    endpoint: str = Form(...),
+    job_id: str = Form(...),
+    history_days: int = Form(...),
+    quantidade_linhas: int = Form(...),
+    tamanho_arquivo: int = Form(...),
+    min_value: int = Form(...),
+    avg_value: int = Form(...),
+    max_value: int = Form(...),
+    stddev: int = Form(...),
+    repeat: int = Form(...),
+    delay: int = Form(...),
+    variation_factor: float = Form(...),
+    trend: str = Form(...)
+):
+    """
+    Gera cargas na aplicação com base nos parâmetros fornecidos.
+    """
+    base_payload = {
+        "job_id": job_id,
+        "monai_history_days": str(history_days),
+        "attributes": {
+            "quantidade_linhas": str(quantidade_linhas),
+            "tamanho_arquivo": str(tamanho_arquivo),
+            "min": str(min_value),
+            "avg": str(avg_value),
+            "max": str(max_value),
+            "stddev": str(stddev),
+        },
+    }
+
+    headers = {"Content-Type": "application/json"}
+
+    def generate_payload(base_payload, variation_factor, trend=None, step=0.05):
+        attributes = base_payload["attributes"]
+        if trend == "up":
+            scale_factor = 1 + step
+        elif trend == "down":
+            scale_factor = 1 - step
+        else:
+            scale_factor = 1 + random.uniform(-variation_factor, variation_factor)
+
+        new_attributes = {}
+        for key, value in attributes.items():
+            if key in ["quantidade_linhas", "tamanho_arquivo", "min", "avg", "max", "stddev"]:
+                base_value = int(value)
+                new_value = int(base_value * scale_factor)
+                if key == "max":
+                    new_value = min(new_value, 999)
+                else:
+                    new_value = max(new_value, 0)
+                new_attributes[key] = str(new_value)
+            else:
+                new_attributes[key] = value
+
+        new_payload = base_payload.copy()
+        new_payload["attributes"] = new_attributes
+        return new_payload
+
+    responses = []
+    for _ in range(repeat):
+        modified_payload = generate_payload(base_payload, variation_factor, trend)
+        response = requests.post(endpoint, data=json.dumps(modified_payload), headers=headers)
+        responses.append({"status_code": response.status_code, "response_text": response.text})
+        time.sleep(delay)
+
+    return {"message": "Cargas geradas com sucesso!", "responses": responses}
