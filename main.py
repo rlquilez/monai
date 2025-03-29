@@ -162,6 +162,11 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         weekday = now.strftime("%A")
         br_holidays = holidays.Brazil()
         is_holiday = now.date() in br_holidays
+
+        # Informações da origem da request para registrar a consulta no QueryLog
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "unknown")  # Obter o user_agent do cabeçalho
+        referer = request.headers.get("referer", "unknown")  # Obter o referer do cabeçalho
         
         # Determinar o número de execuções de histórico
         history_executions = (
@@ -294,11 +299,6 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         # Processar o resultado com base no valor de 'result'
         result = evaluation["result"].lower()
         explanation = evaluation["explain"]
-
-        # Registrar a consulta no QueryLog
-        ip_address = request.client.host
-        user_agent = request.headers.get("user-agent", "unknown")  # Obter o user_agent do cabeçalho
-        referer = request.headers.get("referer", "unknown")  # Obter o referer do cabeçalho
 
         log_query(
             db=db,
