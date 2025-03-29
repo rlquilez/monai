@@ -79,5 +79,27 @@
 
         <button type="submit">Gerar Cargas</button>
     </form>
+    <script>
+        const form = document.querySelector("form");
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert("Cargas geradas com sucesso!");
+                console.log(result);
+            } else {
+                const error = await response.json();
+                alert("Erro ao gerar cargas: " + error.detail);
+                console.error(error);
+            }
+        });
+    </script>
 </body>
 </html>
