@@ -12,3 +12,4 @@ anthropic        # Cliente para interagir com a API Anthropic (Sonnet)
 python-dotenv    # Para carregar variáveis de ambiente de arquivos .env
 httpx            # Cliente HTTP para interagir com APIs
 pytz             # Biblioteca para lidar com timezones
+python-multipart # Necessário para lidar com dados de formulário
