@@ -214,7 +214,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=MAX_TOKENS,
-                temperature=0.1
+                temperature=0
             )
         elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'GOOGLE':
             from google.genai import types
@@ -224,7 +224,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 config=types.GenerateContentConfig(
                     system_instruction="Você é um analista de qualidade de dados altamente especializado.",
                     max_output_tokens=MAX_TOKENS,
-                    temperature=0.1
+                    temperature=0
                 )
             )
         elif os.getenv("MONAI_LLM", "OPENAI").upper() == 'ANTHROPIC':
@@ -232,7 +232,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 model=llm_model,
                 system="Você é um analista de qualidade de dados altamente especializado. Sua tarefa é avaliar minuciosamente se os dados fornecidos seguem o mesmo padrão ou se há alguma anomalia.",
                 max_tokens=MAX_TOKENS,
-                temperature=0.1,
+                temperature=0,
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
