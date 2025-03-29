@@ -68,7 +68,8 @@ def call_api(endpoint, payload, headers=None, repeat=10, delay=2, variation_fact
         try:
             print(f"Enviando requisição {i + 1}/{repeat} para {endpoint}...")
             response = requests.post(endpoint, data=json.dumps(modified_payload), headers=headers, timeout=300)
-            print(f"Request {i + 1}/{repeat} - Response: {response.status_code}, {response.text}")
+            #print(f"Request {i + 1}/{repeat} - Response: {response.status_code}, {response.text}\n")
+            print(f"Response: {response.text}\n")
         except requests.exceptions.Timeout:
             print(f"Timeout na requisição {i + 1}/{repeat}.")
         except requests.exceptions.RequestException as e:
@@ -82,13 +83,13 @@ if __name__ == "__main__":
     
     BASE_PAYLOAD = {
         "job_id": "123e4567-e89b-12d3-a456-426614174001",
-        "monai_history_executions": "30",
+        "monai_history_executions": "20",
         "attributes": {
-            "quantidade_linhas": "100000",
-            "tamanho_arquivo": "1000",
-            "min": "300",
-            "avg": "550",
-            "max": "999",
+            "quantidade_linhas": "70000",
+            "tamanho_arquivo": "700",
+            "min": "100",
+            "avg": "350",
+            "max": "499",
             "stddev": "200"
         }
     }
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         API_ENDPOINT,
         BASE_PAYLOAD,
         headers=HEADERS,
-        repeat=5,  # Reduzido para 5 requisições para teste
+        repeat=30,  # Reduzido para 5 requisições para teste
         delay=1,
         variation_factor=0.1,
         trend="up"  # Alterar para "down" ou None conforme necessário
