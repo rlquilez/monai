@@ -25,12 +25,27 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
 ├── main.py            # Arquivo principal da aplicação
 ├── database.py        # Configuração do banco de dados
 ├── models.py          # Modelos do SQLAlchemy
-├── schemas.py         # Esquemas do Pydantic
+├── schemas.py         # Esquemas do Pydantic para validação de dados
+├── llm_client.py      # Cliente para interação com provedores de LLMs
 ├── requirements.txt   # Dependências do projeto
 ├── Dockerfile         # Configuração para container Docker
+├── .env.example       # Exemplo de configuração de variáveis de ambiente
 ├── .gitignore         # Arquivos ignorados pelo Git
 └── .gitea/workflows/  # Configuração de CI/CD
 ```
+
+### Descrição dos Arquivos
+
+- **`main.py`**: Contém a lógica principal da aplicação e os endpoints da API.
+- **`database.py`**: Configuração do banco de dados e inicialização do SQLAlchemy.
+- **`models.py`**: Define os modelos do banco de dados usando SQLAlchemy.
+- **`schemas.py`**: Define os esquemas de validação de dados usando Pydantic.
+- **`llm_client.py`**: Implementa a lógica para inicializar e interagir com provedores de LLMs (OpenAI, Google Gemini, Anthropic).
+- **`requirements.txt`**: Lista de dependências do projeto.
+- **`Dockerfile`**: Configuração para criar a imagem Docker da aplicação.
+- **`.env.example`**: Exemplo de arquivo para configuração de variáveis de ambiente.
+- **`.gitignore`**: Lista de arquivos e diretórios ignorados pelo Git.
+- **`.gitea/workflows/`**: Configuração de pipelines de CI/CD para o projeto.
 
 ---
 
@@ -69,21 +84,21 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
    MONAI_LLM_MODEL=gpt-4
    MONAI_LLM_KEY=<sua_chave_de_api>
    TZ=America/Sao_Paulo  # Opcional: Configuração de timezone
-   MONAI_HISTORY_DAYS=30  # Opcional: Número de dias de histórico (padrão: 30 dias)
+   MONAI_HISTORY_EXECUTIONS=30  # Número de execuções de histórico (padrão: 30)
    ```
 
 ---
 
 ## Variáveis de Ambiente
 
-| Variável            | Descrição                                                                 | Exemplo                          |
-|---------------------|---------------------------------------------------------------------------|----------------------------------|
-| `MONAI_DATABASE_URL`| URL de conexão com o banco de dados PostgreSQL.                          | `postgresql://user:pass@host:5432/dbname` |
-| `MONAI_LLM`         | Provedor de LLM a ser utilizado.                                         | `OPENAI`, `GOOGLE`, `ANTHROPIC` |
-| `MONAI_LLM_MODEL`   | Modelo do LLM a ser utilizado.                                           | `gpt-4`, `gemini`, `claude`     |
-| `MONAI_LLM_KEY`     | Chave de API para o provedor de LLM.                                     | `sk-1234567890abcdef`           |
-| `TZ`                | Timezone para ajustar os horários.                                       | `America/Sao_Paulo`             |
-| `MONAI_HISTORY_DAYS`| Número de dias de histórico para análise.                                | `30`                            |
+| Variável                  | Descrição                                                                 | Exemplo                          |
+|---------------------------|---------------------------------------------------------------------------|----------------------------------|
+| `MONAI_DATABASE_URL`      | URL de conexão com o banco de dados PostgreSQL.                          | `postgresql://user:pass@host:5432/dbname` |
+| `MONAI_LLM`               | Provedor de LLM a ser utilizado.                                         | `OPENAI`, `GOOGLE`, `ANTHROPIC` |
+| `MONAI_LLM_MODEL`         | Modelo do LLM a ser utilizado.                                           | `gpt-4`, `gemini`, `claude`     |
+| `MONAI_LLM_KEY`           | Chave de API para o provedor de LLM.                                     | `sk-1234567890abcdef`           |
+| `TZ`                      | Timezone para ajustar os horários.                                       | `America/Sao_Paulo`             |
+| `MONAI_HISTORY_EXECUTIONS`| Número de execuções de histórico para análise.                           | `30`                            |
 
 ---
 
@@ -108,7 +123,7 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
      ```json
      {
        "job_id": "123e4567-e89b-12d3-a456-426614174000",
-       "monai_history_days": 7,
+       "monai_history_executions": 7,
        "attributes": {
          "média": 50,
          "máximo": 60
