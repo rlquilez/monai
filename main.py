@@ -347,3 +347,16 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@app.post("/recreate-tables/", tags=["Administração"])
+async def recreate_tables(db: Session = Depends(get_db)):
+    """
+    Endpoint para recriar as tabelas no banco de dados.
+    Remove todas as tabelas existentes e as recria em branco.
+    """
+    try:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        return JSONResponse(content={"message": "Tabelas recriadas com sucesso."}, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao recriar tabelas: {str(e)}")
