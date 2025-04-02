@@ -465,14 +465,17 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 for data in historical_data
             ]
 
+            # Regra padrão que sempre deve ser aplicada
+            DEFAULT_RULE = "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
+            
             # Buscar as regras associadas ao job
-            rules = get_job_rules(db, job.id)
-            if not rules:
-                rules = [
-                    "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
-                ]
+            rules_from_job = get_job_rules(db, job.id)
+            
+            # Combinar a regra padrão com as regras do job
+            rules = [DEFAULT_RULE] + (rules_from_job if rules_from_job else [])
 
-            mandatory_rules = "".join([f"{i + 1}. {rule}\n" for i, rule in enumerate(rules)])
+            # Formatar as regras para o prompt
+            mandatory_rules = "".join(f"{i + 1}. {rule}\n" for i, rule in enumerate(rules))
 
             prompt = (
                 "Contexto: Você é a maior autoridade em qualidade de dados, reconhecida por sua expertise em identificar padrões e inconsistências com precisão. "
@@ -505,7 +508,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             )
 
             print(prompt)
-            
+
             # Enviar o prompt ao LLM
             evaluation = send_prompt_to_llm(client, llm_model, llm_provider, prompt, max_tokens=MAX_TOKENS)
 

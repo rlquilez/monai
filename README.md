@@ -13,22 +13,26 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
 - Identificação de anomalias nos dados recebidos.
 - Suporte a feriados e dias da semana para análise contextual.
 - Configuração de timezone com base na variável de ambiente `TZ`.
+- Sistema de regras flexível com grupos de regras.
+- Validações matemáticas e estatísticas automatizadas.
 
 ## Estrutura do Projeto
 
 ```bash
 .
-├── main.py            # Arquivo principal da aplicação
-├── database.py        # Configuração do banco de dados
-├── models.py          # Modelos do SQLAlchemy
-├── schemas.py         # Esquemas do Pydantic para validação de dados
-├── llm_client.py      # Cliente para interação com provedores de LLMs
-├── requirements.txt   # Dependências do projeto
-├── Dockerfile         # Configuração para container Docker
-├── gerador_massa.py   # Script para geração de massa de dados e envio para a API
-├── .env.example       # Exemplo de configuração de variáveis de ambiente
-├── .gitignore         # Arquivos ignorados pelo Git
-└── .gitea/workflows/  # Configuração de CI/CD
+├── main.py                # Arquivo principal da aplicação
+├── database.py            # Configuração do banco de dados
+├── models.py              # Modelos do SQLAlchemy
+├── schemas.py             # Esquemas do Pydantic para validação de dados
+├── llm_client.py          # Cliente para interação com provedores de LLMs
+├── requirements.txt       # Dependências do projeto
+├── Dockerfile            # Configuração para container Docker
+├── start.sh              # Script de inicialização do container
+├── populate_initial_data.py # Script para popular dados iniciais
+├── gerador_massa.py      # Script para geração de massa de dados
+├── .env.example          # Exemplo de configuração de variáveis de ambiente
+├── .gitignore            # Arquivos ignorados pelo Git
+└── .gitea/workflows/     # Configuração de CI/CD
 ```
 
 ### Descrição dos Arquivos
@@ -37,13 +41,10 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
 - **`database.py`**: Configuração do banco de dados e inicialização do SQLAlchemy.
 - **`models.py`**: Define os modelos do banco de dados usando SQLAlchemy.
 - **`schemas.py`**: Define os esquemas de validação de dados usando Pydantic.
-- **`llm_client.py`**: Implementa a lógica para inicializar e interagir com provedores de LLMs (OpenAI, Google Gemini, Anthropic).
-- **`requirements.txt`**: Lista de dependências do projeto.
-- **`Dockerfile`**: Configuração para criar a imagem Docker da aplicação.
+- **`llm_client.py`**: Implementa a lógica para inicializar e interagir com provedores de LLMs.
+- **`start.sh`**: Script de inicialização que executa a população de dados e inicia a aplicação.
+- **`populate_initial_data.py`**: Script para popular o banco com dados iniciais e regras padrão.
 - **`gerador_massa.py`**: Script para geração de massa de dados e envio para a API.
-- **`.env.example`**: Exemplo de arquivo para configuração de variáveis de ambiente.
-- **`.gitignore`**: Lista de arquivos e diretórios ignorados pelo Git.
-- **`.gitea/workflows/`**: Configuração de pipelines de CI/CD para o projeto.
 
 ## Estrutura do Banco de Dados
 
@@ -78,6 +79,37 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
 | `monai_history_executions` | Integer | Número de execuções históricas consideradas.  |
 | `force_true`           | Boolean    | Indica se o resultado foi forçado como verdadeiro.|
 | `use_historical_outlier` | Boolean  | Indica se outliers históricos foram utilizados.|
+
+### Tabela `job`
+
+| Campo                  | Tipo       | Descrição                                      |
+|------------------------|------------|-----------------------------------------------|
+| `id`                   | String     | Identificador único do job (SHA-256).         |
+| `job_name`             | String     | Nome do job.                                   |
+| `job_filename`         | String     | Nome do arquivo do job.                        |
+| `description`          | String     | Descrição do job.                              |
+| `is_active`            | Boolean    | Indica se o job está ativo.                    |
+| `rule_groups`          | List       | Grupos de regras associados ao job.            |
+
+### Tabela `rule`
+
+| Campo                  | Tipo       | Descrição                                      |
+|------------------------|------------|-----------------------------------------------|
+| `id`                   | UUID       | Identificador único da regra.                  |
+| `name`                 | String     | Nome da regra.                                 |
+| `description`          | String     | Descrição da regra.                            |
+| `rule_text`            | String     | Texto da regra para validação.                 |
+| `is_active`            | Boolean    | Indica se a regra está ativa.                  |
+
+### Tabela `rule_group`
+
+| Campo                  | Tipo       | Descrição                                      |
+|------------------------|------------|-----------------------------------------------|
+| `id`                   | UUID       | Identificador único do grupo.                  |
+| `name`                 | String     | Nome do grupo de regras.                       |
+| `description`          | String     | Descrição do grupo.                            |
+| `is_active`            | Boolean    | Indica se o grupo está ativo.                  |
+| `rules`                | List       | Regras associadas ao grupo.                    |
 
 ## Pré-requisitos
 
@@ -125,6 +157,7 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
 | `MONAI_LLM_KEY`           | Chave de API para o provedor de LLM.                                     | `sk-1234567890abcdef`           |
 | `TZ`                      | Timezone para ajustar os horários.                                       | `America/Sao_Paulo`             |
 | `MONAI_HISTORY_EXECUTIONS`| Número de execuções de histórico para análise.                           | `30`                            |
+| `MONAI_MAX_TOKENS`        | Limite máximo de tokens para respostas LLM.                              | `200`                           |
 
 ## Uso
 
@@ -137,20 +170,29 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
    - Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
    - ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
-3. Envie uma requisição para o endpoint `/jobs/`:
+3. Envie uma requisição para o endpoint `/jobs/data/`:
    - **Exemplo de requisição:**
      ```bash
-     POST /jobs/
+     POST /jobs/data/
      Content-Type: application/json
      ```
      
      ```json
      {
-       "job_id": "123e4567-e89b-12d3-a456-426614174000",
+       "job_name": "Envio Diário Base Full - Banco Joelma",
+       "job_filename": "BASEDIARIA.csv",
        "monai_history_executions": 7,
        "attributes": {
-         "média": 50,
-         "máximo": 60
+         "quantidade_linhas": "80000",
+         "tamanho_arquivo": "800",
+         "score001_min": "106",
+         "score001_avg": "450",
+         "score001_max": "1074",
+         "score001_stddev": "218",
+         "score002_min": "50",
+         "score002_avg": "100",
+         "score002_max": "107",
+         "score002_stddev": "28"
        }
      }
      ```
@@ -185,21 +227,61 @@ As dependências do projeto estão listadas no arquivo [`requirements.txt`](requ
 
 ## Endpoints da API
 
-### POST /jobs/
+### POST /jobs/data/
 Endpoint para envio de dados para análise.
 
 **Parâmetros:**
 ```json
 {
-  "job_id": "UUID",
+  "job_name": "string",
+  "job_filename": "string",
   "monai_history_executions": "int",
   "attributes": {
     "campo1": "valor1",
     "campo2": "valor2"
   },
-  "outlier_data": "boolean (opcional)",
   "use_historical_outlier": "boolean (opcional)",
   "force_true": "boolean (opcional)"
+}
+```
+
+### POST /rules/
+Endpoint para criar uma nova regra.
+
+**Parâmetros:**
+```json
+{
+  "name": "string",
+  "description": "string",
+  "rule_text": "string",
+  "is_active": "boolean"
+}
+```
+
+### POST /rule-groups/
+Endpoint para criar um novo grupo de regras.
+
+**Parâmetros:**
+```json
+{
+  "name": "string",
+  "description": "string",
+  "is_active": "boolean",
+  "rule_ids": ["uuid"]
+}
+```
+
+### POST /jobs/create/
+Endpoint para criar um novo job.
+
+**Parâmetros:**
+```json
+{
+  "job_name": "string",
+  "job_filename": "string",
+  "description": "string",
+  "is_active": "boolean",
+  "rule_group_ids": ["uuid"]
 }
 ```
 
@@ -387,7 +469,8 @@ O script `gerador_massa.py` permite gerar dados de teste:
 ### Configurações
 ```python
 BASE_PAYLOAD = {
-    "job_id": "UUID",
+    "job_name": "Envio Diário Base Full - Banco Joelma",
+    "job_filename": "BASEDIARIA.csv",
     "monai_history_executions": "20",
     "attributes": {
         "quantidade_linhas": "70000",
@@ -423,6 +506,18 @@ python gerador_massa.py
    - Registra todas as consultas
    - Armazena resultados e explicações
    - Mantém dados de auditoria
+
+3. **job**
+   - Armazena informações dos jobs
+   - Gerencia associações com grupos de regras
+
+4. **rule**
+   - Armazena regras de validação
+   - Gerencia regras ativas/inativas
+
+5. **rule_group**
+   - Agrupa regras relacionadas
+   - Gerencia grupos ativos/inativos
 
 ### Manutenção
 1. **Recriação de Tabelas**
