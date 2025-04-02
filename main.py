@@ -14,7 +14,7 @@ import pytz  # Biblioteca para lidar com timezones
 from llm_client import initialize_llm_client, send_prompt_to_llm
 import hashlib  # Import necessário para gerar o fingerprint
 
-# Verificar e criar tabelas no banco de dados
+# Verificar e criar tabelas no banco de dados 
 def create_tables():
     print("Verificando e criando tabelas no banco de dados, se necessário")
     Base.metadata.create_all(bind=engine)
