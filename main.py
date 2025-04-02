@@ -3,8 +3,12 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 from sqlalchemy.orm import Session
 from fastapi import Depends
 from database import SessionLocal, engine
-from models import Base, JobData, QueryLog, Job
-from schemas import JobDataCreate, JobDataResponse, JobCreate, JobUpdate, Job as JobSchema
+from models import Base, JobData, QueryLog, Job, Rule, RuleGroup
+from schemas import (
+    JobDataCreate, JobDataResponse, JobCreate, JobUpdate, Job as JobSchema,
+    RuleCreate, RuleUpdate, Rule as RuleSchema,
+    RuleGroupCreate, RuleGroupUpdate, RuleGroup as RuleGroupSchema
+)
 import uuid
 from datetime import datetime, timedelta
 import holidays
@@ -195,6 +199,243 @@ def log_query(
     db.add(query_log)
     db.commit()
 
+def get_job_rules(db: Session, job_id: str) -> List[str]:
+    """
+    Obtém todas as regras ativas associadas a um job através de seus grupos de regras.
+    
+    Args:
+        db (Session): Sessão do banco de dados
+        job_id (str): ID do job
+        
+    Returns:
+        List[str]: Lista de regras ativas
+    """
+    # Buscar o job com seus grupos de regras
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        return []
+    
+    # Coletar todas as regras ativas dos grupos ativos
+    rules = set()
+    for group in job.rule_groups:
+        if group.is_active:
+            for rule in group.rules:
+                if rule.is_active:
+                    rules.add(rule.rule_text)
+    
+    return list(rules)
+
+# Endpoints para gerenciamento de regras
+@app.post("/rules/", response_model=RuleSchema, tags=["Regras"])
+async def create_rule(rule: RuleCreate, db: Session = Depends(get_db)):
+    """
+    Cria uma nova regra.
+    """
+    db_rule = Rule(**rule.dict())
+    db.add(db_rule)
+    db.commit()
+    db.refresh(db_rule)
+    return db_rule
+
+@app.get("/rules/", response_model=List[RuleSchema], tags=["Regras"])
+async def list_rules(db: Session = Depends(get_db)):
+    """
+    Lista todas as regras cadastradas.
+    """
+    return db.query(Rule).all()
+
+@app.get("/rules/{rule_id}", response_model=RuleSchema, tags=["Regras"])
+async def get_rule(rule_id: UUID, db: Session = Depends(get_db)):
+    """
+    Obtém informações de uma regra específica.
+    """
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regra não encontrada.")
+    return rule
+
+@app.put("/rules/{rule_id}", response_model=RuleSchema, tags=["Regras"])
+async def update_rule(rule_id: UUID, rule_update: RuleUpdate, db: Session = Depends(get_db)):
+    """
+    Atualiza informações de uma regra existente.
+    """
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regra não encontrada.")
+    
+    update_data = rule_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(rule, field, value)
+    
+    db.commit()
+    db.refresh(rule)
+    return rule
+
+@app.delete("/rules/{rule_id}", tags=["Regras"])
+async def delete_rule(rule_id: UUID, db: Session = Depends(get_db)):
+    """
+    Remove uma regra do sistema.
+    """
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regra não encontrada.")
+    
+    db.delete(rule)
+    db.commit()
+    return {"message": "Regra removida com sucesso."}
+
+# Endpoints para gerenciamento de grupos de regras
+@app.post("/rule-groups/", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
+async def create_rule_group(rule_group: RuleGroupCreate, db: Session = Depends(get_db)):
+    """
+    Cria um novo grupo de regras.
+    """
+    # Verificar se todas as regras existem e estão ativas
+    rules = db.query(Rule).filter(Rule.id.in_(rule_group.rule_ids), Rule.is_active == True).all()
+    if len(rules) != len(rule_group.rule_ids):
+        raise HTTPException(status_code=400, detail="Uma ou mais regras não foram encontradas ou estão inativas.")
+    
+    # Criar o grupo de regras
+    db_rule_group = RuleGroup(
+        name=rule_group.name,
+        description=rule_group.description,
+        is_active=rule_group.is_active
+    )
+    db_rule_group.rules = rules
+    db.add(db_rule_group)
+    db.commit()
+    db.refresh(db_rule_group)
+    return db_rule_group
+
+@app.get("/rule-groups/", response_model=List[RuleGroupSchema], tags=["Grupos de Regras"])
+async def list_rule_groups(db: Session = Depends(get_db)):
+    """
+    Lista todos os grupos de regras cadastrados.
+    """
+    return db.query(RuleGroup).all()
+
+@app.get("/rule-groups/{group_id}", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
+async def get_rule_group(group_id: UUID, db: Session = Depends(get_db)):
+    """
+    Obtém informações de um grupo de regras específico.
+    """
+    group = db.query(RuleGroup).filter(RuleGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Grupo de regras não encontrado.")
+    return group
+
+@app.put("/rule-groups/{group_id}", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
+async def update_rule_group(group_id: UUID, group_update: RuleGroupUpdate, db: Session = Depends(get_db)):
+    """
+    Atualiza informações de um grupo de regras existente.
+    """
+    group = db.query(RuleGroup).filter(RuleGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Grupo de regras não encontrado.")
+    
+    update_data = group_update.dict(exclude_unset=True)
+    
+    # Se houver atualização de regras
+    if "rule_ids" in update_data:
+        rules = db.query(Rule).filter(Rule.id.in_(update_data["rule_ids"]), Rule.is_active == True).all()
+        if len(rules) != len(update_data["rule_ids"]):
+            raise HTTPException(status_code=400, detail="Uma ou mais regras não foram encontradas ou estão inativas.")
+        if not rules:
+            raise HTTPException(status_code=400, detail="Um grupo de regras deve ter pelo menos uma regra.")
+        group.rules = rules
+        del update_data["rule_ids"]
+    
+    # Atualizar outros campos
+    for field, value in update_data.items():
+        setattr(group, field, value)
+    
+    db.commit()
+    db.refresh(group)
+    return group
+
+@app.delete("/rule-groups/{group_id}", tags=["Grupos de Regras"])
+async def delete_rule_group(group_id: UUID, db: Session = Depends(get_db)):
+    """
+    Remove um grupo de regras do sistema.
+    """
+    group = db.query(RuleGroup).filter(RuleGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Grupo de regras não encontrado.")
+    
+    db.delete(group)
+    db.commit()
+    return {"message": "Grupo de regras removido com sucesso."}
+
+# Atualizar o endpoint de criação de job para incluir grupos de regras
+@app.post("/jobs/", response_model=JobSchema, tags=["Jobs"])
+async def create_job(job: JobCreate, db: Session = Depends(get_db)):
+    """
+    Cria um novo job.
+    """
+    # Gerar o job_id
+    raw_id = f"{job.job_name}-{job.job_filename}"
+    job_id = hashlib.sha256(raw_id.encode()).hexdigest()
+    
+    # Verificar se o job já existe
+    if db.query(Job).filter(Job.id == job_id).first():
+        raise HTTPException(status_code=400, detail="Job já existe.")
+    
+    # Criar o job
+    db_job = Job(
+        id=job_id,
+        job_name=job.job_name,
+        job_filename=job.job_filename,
+        description=job.description,
+        is_active=job.is_active
+    )
+    
+    # Adicionar grupos de regras se fornecidos
+    if hasattr(job, "rule_group_ids") and job.rule_group_ids:
+        rule_groups = db.query(RuleGroup).filter(
+            RuleGroup.id.in_(job.rule_group_ids),
+            RuleGroup.is_active == True
+        ).all()
+        if len(rule_groups) != len(job.rule_group_ids):
+            raise HTTPException(status_code=400, detail="Um ou mais grupos de regras não foram encontrados ou estão inativos.")
+        db_job.rule_groups = rule_groups
+    
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+    return db_job
+
+# Atualizar o endpoint de atualização de job para incluir grupos de regras
+@app.put("/jobs/{job_id}", response_model=JobSchema, tags=["Jobs"])
+async def update_job(job_id: str, job_update: JobUpdate, db: Session = Depends(get_db)):
+    """
+    Atualiza informações de um job existente.
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job não encontrado.")
+    
+    update_data = job_update.dict(exclude_unset=True)
+    
+    # Se houver atualização de grupos de regras
+    if "rule_group_ids" in update_data:
+        rule_groups = db.query(RuleGroup).filter(
+            RuleGroup.id.in_(update_data["rule_group_ids"]),
+            RuleGroup.is_active == True
+        ).all()
+        if len(rule_groups) != len(update_data["rule_group_ids"]):
+            raise HTTPException(status_code=400, detail="Um ou mais grupos de regras não foram encontrados ou estão inativos.")
+        job.rule_groups = rule_groups
+        del update_data["rule_group_ids"]
+    
+    # Atualizar outros campos
+    for field, value in update_data.items():
+        setattr(job, field, value)
+    
+    db.commit()
+    db.refresh(job)
+    return job
+
+# Atualizar a função create_job_data para usar as regras do banco de dados
 @app.post("/jobs/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
@@ -249,37 +490,38 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 for data in historical_data
             ]
 
-            rules = [
-                "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'avg', juntamente com 'min' e 'max', o valor de 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mean', juntamente com 'min' e 'max', o valor de 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'max', o valor de 'max' deve ser maior que o valor de 'min'.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'std', juntamente com 'min' e 'max', o valor de 'std' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'stdev', juntamente com 'min' e 'max', o valor de 'stdev' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'count', o valor de 'count' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'sum', o valor de 'sum' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'median', o valor de 'median' deve estar entre os valores de 'min' e 'max'.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mode', o valor de 'mode' deve estar entre os valores de 'min' e 'max'.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'variance', o valor de 'variance' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'skewness', o valor de 'skewness' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'kurtosis', o valor de 'kurtosis' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'range', o valor de 'range' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'iqr', o valor de 'iqr' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mad', o valor de 'mad' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'cv', o valor de 'cv' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'z_score', o valor de 'z_score' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'p_value', o valor de 'p_value' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'confidence_interval', o valor de 'confidence_interval' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'upper_bound', o valor de 'upper_bound' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'lower_bound', o valor de 'lower_bound' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'outliers', o valor de 'outliers' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'percentiles', o valor de 'percentiles' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'quartiles', o valor de 'quartiles' deve ser maior que zero.",
-                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
-            ]
-
-            # Adicionar regras adicionais para cada cenários de dados
+            # Obter as regras ativas do job
+            rules = get_job_rules(db, job.id)
+            if not rules:
+                rules = [
+                    "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'avg', juntamente com 'min' e 'max', o valor de 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mean', juntamente com 'min' e 'max', o valor de 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'max', o valor de 'max' deve ser maior que o valor de 'min'.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'std', juntamente com 'min' e 'max', o valor de 'std' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'stdev', juntamente com 'min' e 'max', o valor de 'stdev' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'count', o valor de 'count' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'sum', o valor de 'sum' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'median', o valor de 'median' deve estar entre os valores de 'min' e 'max'.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mode', o valor de 'mode' deve estar entre os valores de 'min' e 'max'.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'variance', o valor de 'variance' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'skewness', o valor de 'skewness' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'kurtosis', o valor de 'kurtosis' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'range', o valor de 'range' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'iqr', o valor de 'iqr' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mad', o valor de 'mad' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'cv', o valor de 'cv' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'z_score', o valor de 'z_score' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'p_value', o valor de 'p_value' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'confidence_interval', o valor de 'confidence_interval' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'upper_bound', o valor de 'upper_bound' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'lower_bound', o valor de 'lower_bound' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'outliers', o valor de 'outliers' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'percentiles', o valor de 'percentiles' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'quartiles', o valor de 'quartiles' deve ser maior que zero.",
+                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
+                ]
 
             mandatory_rules = "".join([f"{i + 1}. {rule}\n" for i, rule in enumerate(rules)])
 
@@ -429,24 +671,6 @@ async def get_job(job_id: str, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job não encontrado.")
-    return job
-
-@app.put("/jobs/{job_id}", response_model=JobSchema, tags=["Jobs"])
-async def update_job(job_id: str, job_update: JobUpdate, db: Session = Depends(get_db)):
-    """
-    Atualiza informações de um job existente.
-    """
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job não encontrado.")
-    
-    # Atualizar apenas os campos fornecidos
-    update_data = job_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(job, field, value)
-    
-    db.commit()
-    db.refresh(job)
     return job
 
 @app.delete("/jobs/{job_id}", tags=["Jobs"])

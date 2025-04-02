@@ -18,11 +18,13 @@ class JobUpdate(JobBase):
     job_filename: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    rule_group_ids: Optional[List[UUID]] = None
 
 class Job(JobBase):
     id: str = Field(..., description="Identificador único do job (SHA-256 do nome e arquivo).")
     created_at: datetime = Field(..., description="Data e hora de criação do job.")
     updated_at: datetime = Field(..., description="Data e hora da última atualização do job.")
+    rule_groups: List[RuleGroup] = Field(default_factory=list, description="Grupos de regras associados ao job.")
 
     class Config:
         from_attributes = True
@@ -70,3 +72,50 @@ class JobDataResponse(BaseModel):
     is_holiday: bool = Field(..., description="Indica se o dia do registro é um feriado.")
     outlier_data: bool = Field(..., description="Indica se o registro é considerado um outlier com base na análise.")
     use_historical_outlier: bool = Field(default=False, description="Indica se o registro foi forçado a considerar outliers no histórico.")
+
+class RuleBase(BaseModel):
+    name: str = Field(..., description="Nome da regra.")
+    description: Optional[str] = Field(None, description="Descrição da regra.")
+    rule_text: str = Field(..., description="Texto da regra.")
+    is_active: bool = Field(True, description="Indica se a regra está ativa.")
+
+class RuleCreate(RuleBase):
+    pass
+
+class RuleUpdate(RuleBase):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    rule_text: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class Rule(RuleBase):
+    id: UUID = Field(..., description="Identificador único da regra.")
+    created_at: datetime = Field(..., description="Data e hora de criação da regra.")
+    updated_at: datetime = Field(..., description="Data e hora da última atualização da regra.")
+    rule_groups: List[RuleGroup] = Field(default_factory=list, description="Grupos de regras aos quais esta regra pertence.")
+
+    class Config:
+        from_attributes = True
+
+class RuleGroupBase(BaseModel):
+    name: str = Field(..., description="Nome do grupo de regras.")
+    description: Optional[str] = Field(None, description="Descrição do grupo de regras.")
+    is_active: bool = Field(True, description="Indica se o grupo de regras está ativo.")
+
+class RuleGroupCreate(RuleGroupBase):
+    rule_ids: List[UUID] = Field(..., min_items=1, description="Lista de IDs das regras que compõem o grupo. Deve conter pelo menos uma regra.")
+
+class RuleGroupUpdate(RuleGroupBase):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    rule_ids: Optional[List[UUID]] = Field(None, min_items=1, description="Lista de IDs das regras que compõem o grupo. Deve conter pelo menos uma regra.")
+
+class RuleGroup(RuleGroupBase):
+    id: UUID = Field(..., description="Identificador único do grupo de regras.")
+    created_at: datetime = Field(..., description="Data e hora de criação do grupo de regras.")
+    updated_at: datetime = Field(..., description="Data e hora da última atualização do grupo de regras.")
+    rules: List[Rule] = Field(..., min_items=1, description="Lista de regras que compõem o grupo. Deve conter pelo menos uma regra.")
+
+    class Config:
+        from_attributes = True

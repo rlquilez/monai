@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import Column, String, JSON, DateTime, Boolean, Text, Integer, ForeignKey
+from sqlalchemy import Column, String, JSON, DateTime, Boolean, Text, Integer, ForeignKey, Table, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -8,6 +8,55 @@ from datetime import datetime
 from pytz import timezone
 
 Base = declarative_base()
+
+# Tabela de associação entre jobs e grupos de regras
+job_rule_groups = Table(
+    'job_rule_groups',
+    Base.metadata,
+    Column('job_id', String, ForeignKey('jobs.id'), primary_key=True),
+    Column('rule_group_id', UUID(as_uuid=True), ForeignKey('rule_groups.id'), primary_key=True)
+)
+
+# Tabela de associação entre grupos de regras e regras
+rule_group_rules = Table(
+    'rule_group_rules',
+    Base.metadata,
+    Column('rule_group_id', UUID(as_uuid=True), ForeignKey('rule_groups.id', ondelete='CASCADE'), primary_key=True),
+    Column('rule_id', UUID(as_uuid=True), ForeignKey('rules.id', ondelete='CASCADE'), primary_key=True)
+)
+
+class Rule(Base):
+    __tablename__ = "rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    rule_text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone(os.getenv("TZ", "America/Sao_Paulo"))), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone(os.getenv("TZ", "America/Sao_Paulo"))), onupdate=lambda: datetime.now(timezone(os.getenv("TZ", "America/Sao_Paulo"))), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Relacionamentos
+    rule_groups = relationship("RuleGroup", secondary=rule_group_rules, back_populates="rules", cascade="all, delete-orphan")
+
+class RuleGroup(Base):
+    __tablename__ = "rule_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone(os.getenv("TZ", "America/Sao_Paulo"))), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone(os.getenv("TZ", "America/Sao_Paulo"))), onupdate=lambda: datetime.now(timezone(os.getenv("TZ", "America/Sao_Paulo"))), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Relacionamentos
+    rules = relationship("Rule", secondary=rule_group_rules, back_populates="rule_groups", cascade="all, delete-orphan")
+    jobs = relationship("Job", secondary=job_rule_groups, back_populates="rule_groups")
+
+    # Garantir que um grupo tenha pelo menos uma regra
+    __table_args__ = (
+        CheckConstraint('EXISTS (SELECT 1 FROM rule_group_rules WHERE rule_group_rules.rule_group_id = rule_groups.id)', name='check_group_has_rules'),
+    )
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -23,6 +72,7 @@ class Job(Base):
     # Relacionamentos
     job_data = relationship("JobData", back_populates="job")
     query_logs = relationship("QueryLog", back_populates="job")
+    rule_groups = relationship("RuleGroup", secondary=job_rule_groups, back_populates="jobs")
 
 class JobData(Base):
     __tablename__ = "job_data"
