@@ -286,26 +286,29 @@ async def delete_rule(rule_id: UUID, db: Session = Depends(get_db)):
 
 # Endpoints para gerenciamento de grupos de regras
 @app.post("/rule-groups/", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
-async def create_rule_group(rule_group: RuleGroupCreate, db: Session = Depends(get_db)):
+async def create_rule_group(group: RuleGroupCreate, db: Session = Depends(get_db)):
     """
     Cria um novo grupo de regras.
     """
-    # Verificar se todas as regras existem e estão ativas
-    rules = db.query(Rule).filter(Rule.id.in_(rule_group.rule_ids), Rule.is_active == True).all()
-    if len(rules) != len(rule_group.rule_ids):
-        raise HTTPException(status_code=400, detail="Uma ou mais regras não foram encontradas ou estão inativas.")
-    
-    # Criar o grupo de regras
-    db_rule_group = RuleGroup(
-        name=rule_group.name,
-        description=rule_group.description,
-        is_active=rule_group.is_active
+    # Verifica se todas as regras existem e estão ativas
+    rules = db.query(Rule).filter(Rule.id.in_(group.rule_ids), Rule.is_active == True).all()
+    if len(rules) != len(group.rule_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Uma ou mais regras não foram encontradas ou não estão ativas."
+        )
+
+    # Cria o grupo de regras
+    db_group = RuleGroup(
+        name=group.name,
+        description=group.description,
+        is_active=group.is_active
     )
-    db_rule_group.rules = rules
-    db.add(db_rule_group)
+    db_group.rules = rules
+    db.add(db_group)
     db.commit()
-    db.refresh(db_rule_group)
-    return db_rule_group
+    db.refresh(db_group)
+    return db_group
 
 @app.get("/rule-groups/", response_model=List[RuleGroupSchema], tags=["Grupos de Regras"])
 async def list_rule_groups(db: Session = Depends(get_db)):
@@ -335,17 +338,18 @@ async def update_rule_group(group_id: UUID, group_update: RuleGroupUpdate, db: S
     
     update_data = group_update.dict(exclude_unset=True)
     
-    # Se houver atualização de regras
+    # Se estiver atualizando as regras, verifica se todas existem e estão ativas
     if "rule_ids" in update_data:
         rules = db.query(Rule).filter(Rule.id.in_(update_data["rule_ids"]), Rule.is_active == True).all()
         if len(rules) != len(update_data["rule_ids"]):
-            raise HTTPException(status_code=400, detail="Uma ou mais regras não foram encontradas ou estão inativas.")
-        if not rules:
-            raise HTTPException(status_code=400, detail="Um grupo de regras deve ter pelo menos uma regra.")
+            raise HTTPException(
+                status_code=400,
+                detail="Uma ou mais regras não foram encontradas ou não estão ativas."
+            )
         group.rules = rules
         del update_data["rule_ids"]
     
-    # Atualizar outros campos
+    # Atualiza os demais campos
     for field, value in update_data.items():
         setattr(group, field, value)
     
