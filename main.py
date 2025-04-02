@@ -10,6 +10,7 @@ from schemas import (
     RuleGroupCreate, RuleGroupUpdate, RuleGroup as RuleGroupSchema
 )
 import uuid
+from uuid import UUID  # Adicionando a importação do tipo UUID
 from datetime import datetime, timedelta
 import holidays
 from typing import Union, List
