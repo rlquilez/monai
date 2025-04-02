@@ -367,11 +367,11 @@ def populate_database():
         groups = create_rule_groups(db, rules)
         print("Grupos de regras criados com sucesso!")
 
-        # Associar todos os grupos de regras ao job
-        for group in groups:
-            job.rule_groups.append(group)
+        # Associar apenas o grupo de Validações Matemáticas Básicas ao job
+        math_group = next(group for group in groups if group.name == "Validações Matemáticas Básicas")
+        job.rule_groups.append(math_group)
         db.commit()
-        print("Grupos de regras associados ao job com sucesso!")
+        print("Grupo de Validações Matemáticas Básicas associado ao job com sucesso!")
 
     except Exception as e:
         print(f"Erro ao popular o banco de dados: {str(e)}")
