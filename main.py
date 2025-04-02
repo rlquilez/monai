@@ -6,7 +6,7 @@ from database import SessionLocal, engine
 from models import Base, JobData, QueryLog, Job, Rule, RuleGroup
 from schemas import (
     JobDataCreate, JobDataResponse, JobCreate, JobUpdate, Job as JobSchema,
-    RuleCreate, RuleUpdate, Rule as RuleSchema,
+    RuleCreate, RuleUpdate, RuleWithGroups as RuleSchema,
     RuleGroupCreate, RuleGroupUpdate, RuleGroup as RuleGroupSchema
 )
 import uuid
