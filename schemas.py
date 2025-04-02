@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from uuid import UUID
 from datetime import datetime
 import hashlib
@@ -85,27 +85,10 @@ class Job(JobBase):
 class JobDataCreate(BaseModel):
     job_name: str = Field(..., description="Nome do job.")
     job_filename: str = Field(..., description="Nome do arquivo do job.")
-    attributes: Dict[str, str] = Field(
-        ..., 
-        description="Atributos do job, representados como um dicionário de chave-valor."
-    )
-    monai_history_executions: int = Field(
-        ..., 
-        gt=0, 
-        description="Número de execuções históricas a serem consideradas para análise. Deve ser maior que 0."
-    )
-    outlier_data: Optional[bool] = Field(
-        default=True,
-        description="Indica se os dados enviados são considerados outliers."
-    )
-    use_historical_outlier: Optional[bool] = Field(
-        default=False,
-        description="Força a utilização de outlier no histórico."
-    )
-    force_true: Optional[bool] = Field(
-        default=False,
-        description="Força o resultado como True, ignorando a análise."
-    )
+    attributes: Dict[str, Any] = Field(..., description="Atributos do job.")
+    monai_history_executions: Optional[int] = Field(None, description="Número de execuções históricas a serem consideradas.")
+    use_historical_outlier: Optional[bool] = Field(False, description="Indica se deve considerar outliers no histórico.")
+    force_true: Optional[bool] = Field(False, description="Indica se deve forçar o resultado como true.")
 
     @property
     def job_id(self) -> str:

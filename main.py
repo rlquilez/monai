@@ -18,6 +18,7 @@ import json
 import pytz  # Biblioteca para lidar com timezones
 from llm_client import initialize_llm_client, send_prompt_to_llm
 import hashlib  # Import necessário para gerar o fingerprint
+from fastapi.responses import JSONResponse
 
 # Verificar e criar tabelas no banco de dados 
 def create_tables():
@@ -413,6 +414,12 @@ async def create_job(job: JobCreate, db: Session = Depends(get_db)):
 @app.post("/jobs/data/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
+        # Verificar ou criar o job automaticamente
+        job = get_or_create_job(db, job_data.job_name, job_data.job_filename)
+        
+        if not job.is_active:
+            raise HTTPException(status_code=400, detail="O job está inativo.")
+
         # Obter o horário atual no timezone configurado
         now = get_current_time()
         weekday = now.strftime("%A")  # Dia da semana
@@ -437,11 +444,11 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         # Consultar os registros mais recentes com base no número de execuções
         if job_data.use_historical_outlier:
             historical_data = db.query(JobData).filter(
-                JobData.job_id == job_data.job_id
+                JobData.job_id == job.id
             ).order_by(JobData.received_at.desc()).limit(history_executions).all()
         else:
             historical_data = db.query(JobData).filter(
-                JobData.job_id == job_data.job_id,
+                JobData.job_id == job.id,
                 JobData.outlier_data == False
             ).order_by(JobData.received_at.desc()).limit(history_executions).all()
 
@@ -542,7 +549,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Registrar a consulta no QueryLog
             log_query(
                 db=db,
-                job_id=str(job_data.job_id),
+                job_id=job.id,
+                job_name=job.job_name,
+                job_filename=job.job_filename,
                 attributes=job_data.attributes,
                 result=result,
                 explanation=explanation,
@@ -557,7 +566,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Criar novo registro no banco de dados
             new_job_data = JobData(
                 id=uuid.uuid4(),
-                job_id=job_data.job_id,
+                job_id=job.id,
+                job_name=job.job_name,
+                job_filename=job.job_filename,
                 attributes=job_data.attributes,
                 received_at=now,
                 weekday=weekday,
@@ -580,7 +591,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Criar novo registro no banco de dados
             new_job_data = JobData(
                 id=uuid.uuid4(),
-                job_id=job_data.job_id,
+                job_id=job.id,
+                job_name=job.job_name,
+                job_filename=job.job_filename,
                 attributes=job_data.attributes,
                 received_at=now,
                 weekday=weekday,
@@ -596,7 +609,9 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Registrar a consulta no QueryLog
             log_query(
                 db=db,
-                job_id=str(job_data.job_id),
+                job_id=job.id,
+                job_name=job.job_name,
+                job_filename=job.job_filename,
                 attributes=job_data.attributes,
                 result="null",
                 explanation=f"É necessário pelo menos {history_executions} execuções de dados históricos para avaliação, mas apenas {len(historical_data)} estão disponíveis.",
