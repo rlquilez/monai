@@ -2,15 +2,28 @@ from database import SessionLocal, engine
 from models import Base, Job, Rule, RuleGroup
 from datetime import datetime
 import uuid
+import sys
 
 # Criar as tabelas
 Base.metadata.create_all(bind=engine)
+
+# Verificar se o job já existe
+def check_job_exists():
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.id == "476ff69a79039e89d7044ebb9959fede2cc2468744b5c3ea7adda58423f4aebd").first()
+        if job:
+            print("Job já existe no banco de dados. Saindo...")
+            return True
+        return False
+    finally:
+        db.close()
 
 # Função para criar o job inicial
 def create_initial_job(db):
     job = Job(
         id="476ff69a79039e89d7044ebb9959fede2cc2468744b5c3ea7adda58423f4aebd",
-        job_name="Envio Diário Base Full - Banco Joelma",
+        job_name="Exemplo - Envio Diário Base Full - Banco Joelma",
         job_filename="BASEDIARIA.csv",
         description="Job para envio diário da base full do Banco Joelma",
         is_active=True,
@@ -353,6 +366,10 @@ def create_rule_groups(db, rules):
 
 # Função principal para popular o banco de dados
 def populate_database():
+    # Verificar se o job já existe
+    if check_job_exists():
+        sys.exit(0)
+        
     db = SessionLocal()
     try:
         # Criar o job inicial

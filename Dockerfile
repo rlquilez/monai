@@ -16,5 +16,9 @@ COPY . .
 # Expõe a porta que o FastAPI usará
 EXPOSE 8000
 
+# Script de inicialização
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
 # Comando para iniciar a aplicação
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/start.sh"]
