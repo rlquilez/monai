@@ -371,8 +371,8 @@ async def delete_rule_group(group_id: UUID, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Grupo de regras removido com sucesso."}
 
-# Atualizar o endpoint de criação de job para incluir grupos de regras
-@app.post("/jobs/", response_model=JobSchema, tags=["Jobs"])
+# Endpoint para criar um novo job
+@app.post("/jobs/create/", response_model=JobSchema, tags=["Jobs"])
 async def create_job(job: JobCreate, db: Session = Depends(get_db)):
     """
     Cria um novo job.
@@ -409,47 +409,10 @@ async def create_job(job: JobCreate, db: Session = Depends(get_db)):
     db.refresh(db_job)
     return db_job
 
-# Atualizar o endpoint de atualização de job para incluir grupos de regras
-@app.put("/jobs/{job_id}", response_model=JobSchema, tags=["Jobs"])
-async def update_job(job_id: str, job_update: JobUpdate, db: Session = Depends(get_db)):
-    """
-    Atualiza informações de um job existente.
-    """
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job não encontrado.")
-    
-    update_data = job_update.dict(exclude_unset=True)
-    
-    # Se houver atualização de grupos de regras
-    if "rule_group_ids" in update_data:
-        rule_groups = db.query(RuleGroup).filter(
-            RuleGroup.id.in_(update_data["rule_group_ids"]),
-            RuleGroup.is_active == True
-        ).all()
-        if len(rule_groups) != len(update_data["rule_group_ids"]):
-            raise HTTPException(status_code=400, detail="Um ou mais grupos de regras não foram encontrados ou estão inativos.")
-        job.rule_groups = rule_groups
-        del update_data["rule_group_ids"]
-    
-    # Atualizar outros campos
-    for field, value in update_data.items():
-        setattr(job, field, value)
-    
-    db.commit()
-    db.refresh(job)
-    return job
-
-# Atualizar a função create_job_data para usar as regras do banco de dados
-@app.post("/jobs/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
+# Endpoint para registrar dados de um job
+@app.post("/jobs/data/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
-        # Verificar ou criar o job automaticamente
-        job = get_or_create_job(db, job_data.job_name, job_data.job_filename)
-        
-        if not job.is_active:
-            raise HTTPException(status_code=400, detail="O job está inativo.")
-
         # Obter o horário atual no timezone configurado
         now = get_current_time()
         weekday = now.strftime("%A")  # Dia da semana
@@ -474,11 +437,11 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
         # Consultar os registros mais recentes com base no número de execuções
         if job_data.use_historical_outlier:
             historical_data = db.query(JobData).filter(
-                JobData.job_id == job.id
+                JobData.job_id == job_data.job_id
             ).order_by(JobData.received_at.desc()).limit(history_executions).all()
         else:
             historical_data = db.query(JobData).filter(
-                JobData.job_id == job.id,
+                JobData.job_id == job_data.job_id,
                 JobData.outlier_data == False
             ).order_by(JobData.received_at.desc()).limit(history_executions).all()
 
@@ -495,38 +458,35 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 for data in historical_data
             ]
 
-            # Obter as regras ativas do job
-            rules = get_job_rules(db, job.id)
-            if not rules:
-                rules = [
-                    "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'avg', juntamente com 'min' e 'max', o valor de 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mean', juntamente com 'min' e 'max', o valor de 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'max', o valor de 'max' deve ser maior que o valor de 'min'.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'std', juntamente com 'min' e 'max', o valor de 'std' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'stdev', juntamente com 'min' e 'max', o valor de 'stdev' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'count', o valor de 'count' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'sum', o valor de 'sum' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'median', o valor de 'median' deve estar entre os valores de 'min' e 'max'.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mode', o valor de 'mode' deve estar entre os valores de 'min' e 'max'.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'variance', o valor de 'variance' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'skewness', o valor de 'skewness' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'kurtosis', o valor de 'kurtosis' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'range', o valor de 'range' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'iqr', o valor de 'iqr' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mad', o valor de 'mad' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'cv', o valor de 'cv' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'z_score', o valor de 'z_score' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'p_value', o valor de 'p_value' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'confidence_interval', o valor de 'confidence_interval' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'upper_bound', o valor de 'upper_bound' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'lower_bound', o valor de 'lower_bound' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'outliers', o valor de 'outliers' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'percentiles', o valor de 'percentiles' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'quartiles', o valor de 'quartiles' deve ser maior que zero.",
-                    "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
-                ]
+            rules = [
+                "Considere as variações contextuais e os padrões esperados, dando maior relevância aos dados históricos mais recentes."
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'avg', juntamente com 'min' e 'max', o valor de 'avg' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'."
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mean', juntamente com 'min' e 'max', o valor de 'mean' deve estar dentro do intervalo definido pelos valores de 'min' e 'max'.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'max', o valor de 'max' deve ser maior que o valor de 'min'.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'std', juntamente com 'min' e 'max', o valor de 'std' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'stdev', juntamente com 'min' e 'max', o valor de 'stdev' deve ser menor que a diferença entre os valores de 'max' e 'min'.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'count', o valor de 'count' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'sum', o valor de 'sum' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'median', o valor de 'median' deve estar entre os valores de 'min' e 'max'.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mode', o valor de 'mode' deve estar entre os valores de 'min' e 'max'.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'variance', o valor de 'variance' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'skewness', o valor de 'skewness' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'kurtosis', o valor de 'kurtosis' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'range', o valor de 'range' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'iqr', o valor de 'iqr' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'mad', o valor de 'mad' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'cv', o valor de 'cv' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'z_score', o valor de 'z_score' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'p_value', o valor de 'p_value' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'confidence_interval', o valor de 'confidence_interval' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'upper_bound', o valor de 'upper_bound' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'lower_bound', o valor de 'lower_bound' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'outliers', o valor de 'outliers' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'percentiles', o valor de 'percentiles' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'quartiles', o valor de 'quartiles' deve ser maior que zero.",
+                "Ao aplicar esta regra, considere a avaliação do último dado recebido e não compare com o histórico. Se houver valores para 'deciles', o valor de 'deciles' deve ser maior que zero.",
+            ]
 
             mandatory_rules = "".join([f"{i + 1}. {rule}\n" for i, rule in enumerate(rules)])
 
@@ -582,9 +542,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Registrar a consulta no QueryLog
             log_query(
                 db=db,
-                job_id=job.id,
-                job_name=job.job_name,
-                job_filename=job.job_filename,
+                job_id=str(job_data.job_id),
                 attributes=job_data.attributes,
                 result=result,
                 explanation=explanation,
@@ -599,9 +557,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Criar novo registro no banco de dados
             new_job_data = JobData(
                 id=uuid.uuid4(),
-                job_id=job.id,
-                job_name=job.job_name,
-                job_filename=job.job_filename,
+                job_id=job_data.job_id,
                 attributes=job_data.attributes,
                 received_at=now,
                 weekday=weekday,
@@ -624,9 +580,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Criar novo registro no banco de dados
             new_job_data = JobData(
                 id=uuid.uuid4(),
-                job_id=job.id,
-                job_name=job.job_name,
-                job_filename=job.job_filename,
+                job_id=job_data.job_id,
                 attributes=job_data.attributes,
                 received_at=now,
                 weekday=weekday,
@@ -642,9 +596,7 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
             # Registrar a consulta no QueryLog
             log_query(
                 db=db,
-                job_id=job.id,
-                job_name=job.job_name,
-                job_filename=job.job_filename,
+                job_id=str(job_data.job_id),
                 attributes=job_data.attributes,
                 result="null",
                 explanation=f"É necessário pelo menos {history_executions} execuções de dados históricos para avaliação, mas apenas {len(historical_data)} estão disponíveis.",
@@ -656,7 +608,6 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
                 force_true=job_data.force_true
             )
             return {"message": f"É necessário pelo menos {history_executions} execuções de dados históricos para avaliação, mas apenas {len(historical_data)} estão disponíveis."}
-
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
