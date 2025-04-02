@@ -1,0 +1,15 @@
+fastapi          # Framework web para construir APIs
+jinja2           # Biblioteca para renderização de templates
+requests         # Biblioteca para realizar requisições HTTP
+uvicorn[standard]  # Servidor ASGI para rodar a aplicação FastAPI
+sqlalchemy       # ORM para interagir com o banco de dados
+psycopg2-binary  # Driver PostgreSQL para Python
+pydantic         # Validação de dados e esquemas
+holidays         # Biblioteca para calcular feriados
+openai           # Cliente para interagir com a API OpenAI
+google-genai     # Cliente para interagir com a API Gemini (Google)
+anthropic        # Cliente para interagir com a API Anthropic (Sonnet)
+python-dotenv    # Para carregar variáveis de ambiente de arquivos .env
+httpx            # Cliente HTTP para interagir com APIs
+pytz             # Biblioteca para lidar com timezones
+python-multipart # Necessário para lidar com dados de formulário
