@@ -9,7 +9,7 @@ API_URL = "http://localhost:8000"  # Ajuste conforme necessário
 
 # Payload base com os novos campos
 BASE_PAYLOAD = {
-    "job_name": "processamento_diario",
+    "job_name": "processamento_diario banco x",
     "job_filename": "arquivo_diario.csv",
     "attributes": {
         "quantidade_linhas": 1000,
