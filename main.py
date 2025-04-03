@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, APIRouter
 from sqlalchemy.orm import Session
 from fastapi import Depends
 from database import SessionLocal, engine
@@ -49,6 +49,9 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     },
 )
+
+# Criar router para a versão 1 da API
+api_v1 = APIRouter(prefix="/api/v1")
 
 # Chamar a função para verificar e criar tabelas
 create_tables()
@@ -228,7 +231,7 @@ def get_job_rules(db: Session, job_id: str) -> List[str]:
     return list(rules)
 
 # Endpoints para gerenciamento de regras
-@app.post("/rules/", response_model=RuleSchema, tags=["Regras"])
+@api_v1.post("/rules/", response_model=RuleSchema, tags=["Regras"])
 async def create_rule(rule: RuleCreate, db: Session = Depends(get_db)):
     """
     Cria uma nova regra.
@@ -239,14 +242,14 @@ async def create_rule(rule: RuleCreate, db: Session = Depends(get_db)):
     db.refresh(db_rule)
     return db_rule
 
-@app.get("/rules/", response_model=List[RuleSchema], tags=["Regras"])
+@api_v1.get("/rules/", response_model=List[RuleSchema], tags=["Regras"])
 async def list_rules(db: Session = Depends(get_db)):
     """
     Lista todas as regras cadastradas.
     """
     return db.query(Rule).all()
 
-@app.get("/rules/{rule_id}", response_model=RuleSchema, tags=["Regras"])
+@api_v1.get("/rules/{rule_id}", response_model=RuleSchema, tags=["Regras"])
 async def get_rule(rule_id: UUID, db: Session = Depends(get_db)):
     """
     Obtém informações de uma regra específica.
@@ -256,7 +259,7 @@ async def get_rule(rule_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Regra não encontrada.")
     return rule
 
-@app.put("/rules/{rule_id}", response_model=RuleSchema, tags=["Regras"])
+@api_v1.put("/rules/{rule_id}", response_model=RuleSchema, tags=["Regras"])
 async def update_rule(rule_id: UUID, rule_update: RuleUpdate, db: Session = Depends(get_db)):
     """
     Atualiza informações de uma regra existente.
@@ -273,7 +276,7 @@ async def update_rule(rule_id: UUID, rule_update: RuleUpdate, db: Session = Depe
     db.refresh(rule)
     return rule
 
-@app.delete("/rules/{rule_id}", tags=["Regras"])
+@api_v1.delete("/rules/{rule_id}", tags=["Regras"])
 async def delete_rule(rule_id: UUID, db: Session = Depends(get_db)):
     """
     Remove uma regra do sistema.
@@ -287,7 +290,7 @@ async def delete_rule(rule_id: UUID, db: Session = Depends(get_db)):
     return {"message": "Regra removida com sucesso."}
 
 # Endpoints para gerenciamento de grupos de regras
-@app.post("/rule-groups/", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
+@api_v1.post("/rule-groups/", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
 async def create_rule_group(group: RuleGroupCreate, db: Session = Depends(get_db)):
     """
     Cria um novo grupo de regras.
@@ -312,14 +315,14 @@ async def create_rule_group(group: RuleGroupCreate, db: Session = Depends(get_db
     db.refresh(db_group)
     return db_group
 
-@app.get("/rule-groups/", response_model=List[RuleGroupSchema], tags=["Grupos de Regras"])
+@api_v1.get("/rule-groups/", response_model=List[RuleGroupSchema], tags=["Grupos de Regras"])
 async def list_rule_groups(db: Session = Depends(get_db)):
     """
     Lista todos os grupos de regras cadastrados.
     """
     return db.query(RuleGroup).all()
 
-@app.get("/rule-groups/{group_id}", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
+@api_v1.get("/rule-groups/{group_id}", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
 async def get_rule_group(group_id: UUID, db: Session = Depends(get_db)):
     """
     Obtém informações de um grupo de regras específico.
@@ -329,7 +332,7 @@ async def get_rule_group(group_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Grupo de regras não encontrado.")
     return group
 
-@app.put("/rule-groups/{group_id}", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
+@api_v1.put("/rule-groups/{group_id}", response_model=RuleGroupSchema, tags=["Grupos de Regras"])
 async def update_rule_group(group_id: UUID, group_update: RuleGroupUpdate, db: Session = Depends(get_db)):
     """
     Atualiza informações de um grupo de regras existente.
@@ -359,7 +362,7 @@ async def update_rule_group(group_id: UUID, group_update: RuleGroupUpdate, db: S
     db.refresh(group)
     return group
 
-@app.delete("/rule-groups/{group_id}", tags=["Grupos de Regras"])
+@api_v1.delete("/rule-groups/{group_id}", tags=["Grupos de Regras"])
 async def delete_rule_group(group_id: UUID, db: Session = Depends(get_db)):
     """
     Remove um grupo de regras do sistema.
@@ -373,7 +376,7 @@ async def delete_rule_group(group_id: UUID, db: Session = Depends(get_db)):
     return {"message": "Grupo de regras removido com sucesso."}
 
 # Endpoint para criar um novo job
-@app.post("/jobs/create/", response_model=JobSchema, tags=["Jobs"])
+@api_v1.post("/jobs/create/", response_model=JobSchema, tags=["Jobs"])
 async def create_job(job: JobCreate, db: Session = Depends(get_db)):
     """
     Cria um novo job.
@@ -411,7 +414,7 @@ async def create_job(job: JobCreate, db: Session = Depends(get_db)):
     return db_job
 
 # Endpoint para registrar dados de um job
-@app.post("/jobs/data/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
+@api_v1.post("/jobs/data/", response_model=Union[JobDataResponse, dict], tags=["Jobs"])
 async def create_job_data(job_data: JobDataCreate, request: Request, db: Session = Depends(get_db)):
     try:
         # Verificar ou criar o job automaticamente
@@ -609,14 +612,14 @@ async def create_job_data(job_data: JobDataCreate, request: Request, db: Session
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/jobs/", response_model=List[JobSchema], tags=["Jobs"])
+@api_v1.get("/jobs/", response_model=List[JobSchema], tags=["Jobs"])
 async def list_jobs(db: Session = Depends(get_db)):
     """
     Lista todos os jobs cadastrados.
     """
     return db.query(Job).all()
 
-@app.get("/jobs/{job_id}", response_model=JobSchema, tags=["Jobs"])
+@api_v1.get("/jobs/{job_id}", response_model=JobSchema, tags=["Jobs"])
 async def get_job(job_id: str, db: Session = Depends(get_db)):
     """
     Obtém informações de um job específico.
@@ -626,7 +629,7 @@ async def get_job(job_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job não encontrado.")
     return job
 
-@app.delete("/jobs/{job_id}", tags=["Jobs"])
+@api_v1.delete("/jobs/{job_id}", tags=["Jobs"])
 async def delete_job(job_id: str, db: Session = Depends(get_db)):
     """
     Remove um job do sistema.
@@ -639,7 +642,7 @@ async def delete_job(job_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Job removido com sucesso."}
 
-@app.post("/recreate-tables/", tags=["Administração"])
+@api_v1.post("/recreate-tables/", tags=["Administração"])
 async def recreate_tables(db: Session = Depends(get_db)):
     """
     Endpoint para recriar as tabelas no banco de dados.
@@ -651,3 +654,6 @@ async def recreate_tables(db: Session = Depends(get_db)):
         return JSONResponse(content={"message": "Tabelas recriadas com sucesso."}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao recriar tabelas: {str(e)}")
+
+# Incluir o router da API v1 na aplicação principal
+app.include_router(api_v1)

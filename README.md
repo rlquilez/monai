@@ -170,10 +170,10 @@ Este projeto é uma API construída com **FastAPI** para análise de dados utili
    - Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
    - ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
-3. Envie uma requisição para o endpoint `/jobs/data/`:
+3. Envie uma requisição para o endpoint `/api/v1/jobs/data/`:
    - **Exemplo de requisição:**
      ```bash
-     POST /jobs/data/
+     POST /api/v1/jobs/data/
      Content-Type: application/json
      ```
      
@@ -227,7 +227,10 @@ As dependências do projeto estão listadas no arquivo [`requirements.txt`](requ
 
 ## Endpoints da API
 
-### POST /jobs/data/
+### Versionamento
+A API utiliza versionamento na URL para garantir compatibilidade com versões futuras. O prefixo `/api/v1/` indica que estamos usando a primeira versão da API. Quando uma nova versão for lançada, ela será acessível através de `/api/v2/`, mantendo a versão anterior funcionando.
+
+### POST /api/v1/jobs/data/
 Endpoint para envio de dados para análise.
 
 **Parâmetros:**
@@ -245,7 +248,7 @@ Endpoint para envio de dados para análise.
 }
 ```
 
-### POST /rules/
+### POST /api/v1/rules/
 Endpoint para criar uma nova regra.
 
 **Parâmetros:**
@@ -258,7 +261,7 @@ Endpoint para criar uma nova regra.
 }
 ```
 
-### POST /rule-groups/
+### POST /api/v1/rule-groups/
 Endpoint para criar um novo grupo de regras.
 
 **Parâmetros:**
@@ -271,7 +274,7 @@ Endpoint para criar um novo grupo de regras.
 }
 ```
 
-### POST /jobs/create/
+### POST /api/v1/jobs/create/
 Endpoint para criar um novo job.
 
 **Parâmetros:**
@@ -284,6 +287,42 @@ Endpoint para criar um novo job.
   "rule_group_ids": ["uuid"]
 }
 ```
+
+### GET /api/v1/jobs/
+Endpoint para listar todos os jobs cadastrados.
+
+### GET /api/v1/jobs/{job_id}/
+Endpoint para obter informações de um job específico.
+
+### DELETE /api/v1/jobs/{job_id}/
+Endpoint para remover um job.
+
+### GET /api/v1/rules/
+Endpoint para listar todas as regras cadastradas.
+
+### GET /api/v1/rules/{rule_id}/
+Endpoint para obter informações de uma regra específica.
+
+### PUT /api/v1/rules/{rule_id}/
+Endpoint para atualizar uma regra existente.
+
+### DELETE /api/v1/rules/{rule_id}/
+Endpoint para remover uma regra.
+
+### GET /api/v1/rule-groups/
+Endpoint para listar todos os grupos de regras cadastrados.
+
+### GET /api/v1/rule-groups/{group_id}/
+Endpoint para obter informações de um grupo de regras específico.
+
+### PUT /api/v1/rule-groups/{group_id}/
+Endpoint para atualizar um grupo de regras existente.
+
+### DELETE /api/v1/rule-groups/{group_id}/
+Endpoint para remover um grupo de regras.
+
+### POST /api/v1/recreate-tables/
+Endpoint para recriar as tabelas no banco de dados.
 
 ## Configurações Avançadas
 
@@ -522,7 +561,7 @@ python gerador_massa.py
 ### Manutenção
 1. **Recriação de Tabelas**
    ```bash
-   POST /recreate-tables/
+   POST /api/v1/recreate-tables/
    ```
 
 2. **Backup**

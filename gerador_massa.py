@@ -68,7 +68,7 @@ def call_api(num_requests=10, delay=1, variation_factor=0.1, trend=None):
             payload = generate_payload(variation_factor, trend)
             
             # Fazer a requisição
-            response = requests.post(f"{API_URL}/jobs/", json=payload)
+            response = requests.post(f"{API_URL}/api/v1/jobs/data/", json=payload)
             
             # Verificar status da resposta
             if response.status_code == 200:
